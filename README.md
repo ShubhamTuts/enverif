@@ -44,9 +44,9 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
-## Enverif 1.3.0
+## Enverif 1.3.1
 
-The 1.3 release hardens the conversation as the durable operating surface and closes the UI/runtime gaps found during real shared-hosting deployment. Chat turns submit in place without navigating to a transport endpoint, thread URLs are updated with browser history, controls are consistently styled, assets are release-versioned to defeat stale LiteSpeed/browser caches, and the desktop shell no longer applies a duplicate sidebar offset.
+The 1.3.1 release hardens the conversation as the durable operating surface and closes the UI/runtime gaps found during real shared-hosting deployment. Chat turns submit in place without navigating to a transport endpoint, thread URLs are updated with browser history, controls are consistently styled, assets are release-versioned to defeat stale LiteSpeed/browser caches, and the desktop shell no longer applies a duplicate sidebar offset.
 
 Agent and workflow execution remain durable and snapshot mutable configuration. Interactive requests in Shared/Compatibility mode can opportunistically drain a bounded queue slice after the HTTP response while the once-per-minute cron/Web Cron remains authoritative for schedules and delayed work. Workflow validation now requires explicit condition branches and model-ready agent/skill executors.
 

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Existing semantic version tag to verify/build (for example v1.3.0)'
+        description: 'Existing semantic version tag to verify/build (for example v1.3.1)'
         required: true
         type: string
 

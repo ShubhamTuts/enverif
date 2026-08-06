@@ -31,9 +31,9 @@ The tick acquires a lock, dispatches due schedules, drains a bounded amount of q
 
 If CLI cron is unavailable, configure the signed Web Cron endpoint shown in System Health/Settings. It executes the same bounded tick service; it does not expose arbitrary Artisan execution.
 
-## Upgrading an existing installation to 1.3.0
+## Upgrading an existing installation to 1.3.1
 
-Back up the database and `.env`. A full GitHub no-SSH release may be extracted as documented by the release notes. If using the separately named 1.3.0 **shared-hosting update** archive, preserve your existing `vendor/` and `.env`, overwrite the application files, remove a stale `bootstrap/cache/config.php` if present, then run the database migration/recovery flow.
+Back up the database and `.env`. A full GitHub no-SSH release may be extracted as documented by the release notes. If using the separately named 1.3.1 **shared-hosting update** archive, preserve your existing `vendor/` and `.env`, overwrite the application files, remove a stale `bootstrap/cache/config.php` if present, then run the database migration/recovery flow.
 
 The 1.2 migration adds persistent chat defaults/history execution fields, private attachment records, agent avatar/default-effort fields and workflow run mode/retry fields.
 

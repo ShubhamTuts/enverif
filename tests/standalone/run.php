@@ -441,8 +441,8 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
     }
 };
 
-$tests['release source reports semantic version 1.3.0'] = function (): void {
-    assert(trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION')) === '1.3.0');
+$tests['release source reports semantic version 1.3.1'] = function (): void {
+    assert(trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION')) === '1.3.1');
 };
 
 
@@ -618,6 +618,32 @@ $tests['shared hosting interactive actions schedule a bounded post-response queu
     assert(str_contains($chat, '$queueKick->afterResponse()'));
     assert(str_contains($agents, '$queueKick->afterResponse()'));
     assert(str_contains($workflows, '$queueKick->afterResponse()'));
+};
+
+
+
+$tests['guest installer and login assets are release cache busted'] = function (): void {
+    $layout = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/layouts/guest.blade.php');
+    assert(str_contains($layout, "asset('assets/app.css') }}?v="));
+    assert(str_contains($layout, "asset('assets/app.js') }}?v="));
+    assert(str_contains($layout, "asset('assets/enverif-mark.svg') }}?v="));
+};
+
+
+$tests['installer view has a defensive model catalog fallback for partial shared hosting updates'] = function (): void {
+    $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/install/index.blade.php');
+    assert(str_contains($view, '$installModelCatalogJson ??'));
+    assert(str_contains($view, '$modelCatalog ?? []'));
+};
+
+$tests['installer always supplies serialized model catalog to the Blade view'] = function (): void {
+    $root = dirname(__DIR__, 2);
+    $controller = (string) file_get_contents($root.'/app/Http/Controllers/InstallController.php');
+    $view = (string) file_get_contents($root.'/resources/views/install/index.blade.php');
+    assert(str_contains($view, '$installModelCatalogJson'));
+    assert(str_contains($controller, "'installModelCatalogJson' =>"));
+    assert(str_contains($controller, 'json_encode('));
+    assert(str_contains($controller, '$modelCatalog'));
 };
 
 $passed = 0;

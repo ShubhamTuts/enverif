@@ -24,7 +24,7 @@ $required = [
     'scripts/build-site.php', 'scripts/check-site.php', 'scripts/build-release.sh', 'scripts/ci-installer-smoke.sh',
     '.github/workflows/ci.yml', '.github/workflows/pages.yml', '.github/workflows/release.yml',
     'docs/hosting/shared-hosting.md', 'docs/user-guide/email-automation.md', 'docs/user-guide/workflows.md',
-    'tests/Feature/CoreHttpSmokeTest.php', 'tests/Feature/ChatHttpTest.php', 'tests/Feature/WorkflowRuntimeTest.php', 'tests/Feature/AgentAvatarTest.php',
+    'tests/Feature/CoreHttpSmokeTest.php', 'tests/Feature/ChatHttpTest.php', 'tests/Feature/WorkflowRuntimeTest.php', 'tests/Feature/AgentAvatarTest.php', 'tests/Feature/InstallerHttpTest.php',
 ];
 foreach ($required as $file) {
     $checks++;
@@ -124,6 +124,17 @@ if (!str_contains($installerController, "'SESSION_DRIVER' => 'database'")) {
 }
 if (!str_contains($installerController, "@unlink(storage_path('app/bootstrap.key'))")) {
     $fail('Installer must remove the temporary bootstrap key after APP_KEY is persisted.');
+}
+$installerView = (string) file_get_contents($root.'/resources/views/install/index.blade.php');
+foreach ([
+    "'modelCatalog' => \$modelCatalog",
+    "'installModelCatalogJson' => \$installModelCatalogJson",
+    'json_encode(',
+] as $expected) {
+    if (!str_contains($installerController, $expected)) $fail("Installer view contract is missing: {$expected}");
+}
+if (!str_contains($installerView, '$installModelCatalogJson')) {
+    $fail('Installer view must render the serialized model catalog provided by InstallController.');
 }
 
 $checks++;
@@ -265,6 +276,10 @@ if (str_contains($layout, '<small>by Codefreex</small>') || str_contains($layout
 foreach (['assets/app.css', 'assets/app.js'] as $asset) {
     if (!str_contains($layout, "asset('{$asset}') }}?v=")) $fail("Application asset is missing release cache-busting: {$asset}");
 }
+$guestLayout = (string) file_get_contents($root.'/resources/views/layouts/guest.blade.php');
+foreach (['assets/enverif-mark.svg', 'assets/app.css', 'assets/app.js'] as $asset) {
+    if (!str_contains($guestLayout, "asset('{$asset}') }}?v=")) $fail("Guest/installer asset is missing release cache-busting: {$asset}");
+}
 
 $checks++;
 $appCss = (string) file_get_contents($root.'/resources/css/app.css');
@@ -323,6 +338,36 @@ foreach ($runtimePhp as $runtimePath) {
 foreach (array_keys($viewsReferenced) as $viewName) {
     $viewPath = $root.'/resources/views/'.str_replace('.', '/', $viewName).'.blade.php';
     if (!is_file($viewPath)) $fail("Controller references missing Blade view: {$viewName}");
+}
+
+
+$criticalViewContracts = [
+    ['app/Http/Controllers/InstallController.php', ['requirements','detectedProfile','redisDetected','suggestedAppUrl','modelCatalog','installModelCatalogJson','installationStatus']],
+    ['app/Http/Controllers/AgentController.php', ['agents','agent','runs','memories','models','modelCatalog','skills','connectors']],
+    ['app/Http/Controllers/ApprovalController.php', ['approvals']],
+    ['app/Http/Controllers/AuditController.php', ['events']],
+    ['app/Http/Controllers/CampaignController.php', ['campaigns','campaign','members','availableLeads']],
+    ['app/Http/Controllers/ChatController.php', ['thread','threads','agents','modelConnections','modelCatalog','connectors','skills','workflows','leads','campaigns','selectedAgentId','selectedConnectionId','selectedModel','selectedEffort','chatQuery','showArchived']],
+    ['app/Http/Controllers/ConnectorController.php', ['connections','catalog','connection','driver']],
+    ['app/Http/Controllers/DashboardController.php', ['metrics','runs','schedules','hotLeads']],
+    ['app/Http/Controllers/LeadController.php', ['leads','lead','activities']],
+    ['app/Http/Controllers/McpServerController.php', ['servers','server']],
+    ['app/Http/Controllers/ModelConnectionController.php', ['connections','catalog','connection','provider']],
+    ['app/Http/Controllers/RunController.php', ['run']],
+    ['app/Http/Controllers/ScheduleController.php', ['schedules','calendar','month','prevMonth','nextMonth','schedule','agents','workflows']],
+    ['app/Http/Controllers/SettingsController.php', ['workspace','health','models','emailConnections','integrationCount','cronCommand','webCronUrl','isCompatibilityMode']],
+    ['app/Http/Controllers/SkillController.php', ['skills','skill']],
+    ['app/Http/Controllers/WorkflowController.php', ['workflows','workflow','runs','runtimeErrors','agents','connectors','skills','campaigns','connectorCatalog']],
+    ['app/Http/Controllers/WorkflowRunController.php', ['run']],
+];
+foreach ($criticalViewContracts as [$controllerPath, $variables]) {
+    $controllerText = (string) file_get_contents($root.'/'.$controllerPath);
+    foreach ($variables as $variable) {
+        $checks++;
+        if (!preg_match('/[\'\"]'.preg_quote($variable, '/').'[\'\"]\s*=>/', $controllerText)) {
+            $fail("Controller/view contract is missing {$variable} in {$controllerPath}");
+        }
+    }
 }
 
 $docCopies = [

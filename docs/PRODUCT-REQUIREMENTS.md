@@ -2,7 +2,11 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.3.0
+**Target release:** 1.3.1
+
+### 1.3.1 installer-contract hotfix addendum
+
+Version 1.3.1 closes a shared-hosting installer view-contract defect discovered on the live Laravel 13.24 deployment. `InstallController@index` must always provide both the provider model catalog and its safely serialized JSON form; the installer Blade template also retains a defensive local fallback so a partially overwritten deployment does not crash before database setup. A fresh `/install` HTTP render is an explicit CI release gate, and critical controller-to-view payload contracts are statically verified. Guest/login/installer assets carry the release version to prevent stale LiteSpeed/browser assets after upgrades.
 
 ### 1.3 production-hardening addendum
 
@@ -978,9 +982,9 @@ No workflow hard-codes an unrelated version. Dependency lockfile changes are rev
 5. Preview icon/metadata in catalog.
 6. Submit PR using documented checklist.
 
-## 27. Definition of done for Enverif 1.3.0
+## 27. Definition of done for Enverif 1.3.1
 
-Enverif 1.3.0 is complete only when all of the following are true:
+Enverif 1.3.1 is complete only when all of the following are true:
 
 - Fatal trait collisions are impossible and regression-tested.
 - Installer completes from empty DB and recovers partial/stale states.

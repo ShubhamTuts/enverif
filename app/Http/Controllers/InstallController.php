@@ -24,12 +24,19 @@ final class InstallController extends Controller
         $path = strtok($path, '?') ?: '';
         $suggestedUrl = rtrim($request->getSchemeAndHttpHost() . $path, '/');
 
+        $modelCatalog = $providers->catalog();
+        $installModelCatalogJson = json_encode(
+            $modelCatalog,
+            JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES,
+        ) ?: '{}';
+
         return view('install.index', [
             'requirements' => $this->requirements(),
             'detectedProfile' => $detected,
             'redisDetected' => $redis,
             'suggestedAppUrl' => $suggestedUrl ?: $request->getSchemeAndHttpHost(),
-            'modelCatalog' => $providers->catalog(),
+            'modelCatalog' => $modelCatalog,
+            'installModelCatalogJson' => $installModelCatalogJson,
             'installationStatus' => $installationState->snapshot()['status'],
         ]);
     }

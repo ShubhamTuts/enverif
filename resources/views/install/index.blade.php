@@ -1,6 +1,13 @@
 @extends('layouts.guest')
 @section('title', __('ui.install'))
 @section('content')
+@php
+    $modelCatalog = $modelCatalog ?? [];
+    $installModelCatalogJson = $installModelCatalogJson ?? (json_encode(
+        $modelCatalog,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES,
+    ) ?: '{}');
+@endphp
 <div class="installer installer-wizard" data-installer>
     <div class="installer-head">
         <div class="auth-brand" style="margin:0">

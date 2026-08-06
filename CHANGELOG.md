@@ -2,6 +2,14 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.1 — 2026-08-06
+
+- Fixed `/install` returning a Laravel 500 because the installer Blade template referenced `$installModelCatalogJson` without the controller supplying it.
+- The installer controller now serializes the provider model catalog explicitly, and the Blade view has a defensive fallback for partially overwritten shared-hosting updates.
+- Added a Laravel installer-page feature test and expanded release verification with controller-to-view data-contract checks across primary screens.
+- Added release-version cache busting to guest/login/installer assets so Hostinger/LiteSpeed cannot keep stale CSS or JavaScript after an update.
+- Retained all 1.3.0 chat, workflow, shared-hosting, UUID/workspace, UI and plugin hardening fixes.
+
 ## 1.3.0 — 2026-08-06
 
 - Chat submissions now stay on the chat surface: Fetch transport, canonical thread URLs via History API, live server-rendered transcript replacement, polling and composer run locking; the legacy `/chats/send` endpoint is removed.

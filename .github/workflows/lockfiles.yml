@@ -1,0 +1,66 @@
+name: Generate dependency lockfiles
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate dependency locks
+        run: |
+          composer update --no-install --no-interaction --prefer-dist --no-progress --no-scripts
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify generated locks install
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Create or update lockfile branch
+        id: branch
+        shell: bash
+        run: |
+          if git diff --quiet -- composer.lock package-lock.json && git ls-files --error-unmatch composer.lock package-lock.json >/dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BRANCH="build/dependency-locks"
+          git config user.name "enverif-release[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git switch -C "$BRANCH"
+          git add composer.lock package-lock.json
+          git commit -m "build: lock release dependencies"
+          git push --force-with-lease origin "$BRANCH"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+      - name: Open or update pull request
+        if: steps.branch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          BRANCH="${{ steps.branch.outputs.branch }}"
+          if gh pr list --head "$BRANCH" --base main --state open --json number --jq 'length' | grep -q '^0$'; then
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "build: lock Enverif release dependencies" \
+              --body "Generated Composer and npm lockfiles for deterministic Enverif release builds. Merge only after CI passes."
+          else
+            echo "Existing lockfile pull request updated."
+          fi

@@ -1,0 +1,3 @@
+<?php
+namespace App\Core\Skills;
+final class SkillSecurityScanner {/** @return array{safe:bool,findings:list<string>} */public function scan(string $content):array{$patterns=['/curl\s+[^\n]+\|\s*(sh|bash)/i'=>'Downloads piped directly to a shell','/wget\s+[^\n]+\|\s*(sh|bash)/i'=>'Downloads piped directly to a shell','/rm\s+-rf\s+\/(?!tmp)/i'=>'Destructive root-level deletion instruction','/(BEGIN RSA PRIVATE KEY|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,})/'=>'Possible embedded secret','/chmod\s+777/i'=>'World-writable permission instruction'];$findings=[];foreach($patterns as $regex=>$message)if(preg_match($regex,$content)===1)$findings[]=$message;return ['safe'=>$findings===[],'findings'=>$findings];}}

@@ -1,0 +1,3 @@
+<?php
+namespace App\Http\Controllers;use App\Models\{Agent,AgentRun,AgentSchedule,Approval,Campaign,Lead};
+final class DashboardController extends Controller {public function __invoke(){return view('dashboard',['metrics'=>['agents'=>Agent::where('status','active')->count(),'leads'=>Lead::count(),'campaigns'=>Campaign::count(),'approvals'=>Approval::where('status','pending')->count()],'runs'=>AgentRun::with('agent')->latest()->limit(7)->get(),'schedules'=>AgentSchedule::with('agent')->where('enabled',true)->orderBy('next_run_at')->limit(5)->get(),'hotLeads'=>Lead::where('score','>=',70)->orderByDesc('score')->limit(6)->get()]);}}

@@ -1,0 +1,4 @@
+<?php
+namespace App\Core\Models\Providers;
+use App\Core\Models\Contracts\ModelProvider;use App\Models\ModelConnection;use Illuminate\Http\Client\PendingRequest;use Illuminate\Support\Facades\Http;
+abstract class AbstractHttpProvider implements ModelProvider {protected function client(ModelConnection $connection,array $headers=[]):PendingRequest{return Http::acceptJson()->asJson()->withHeaders($headers)->timeout(90)->retry(2,750,throw:false);}protected function apiKey(ModelConnection $connection):string{$key=$connection->credential('api_key');if(!$key)throw new \RuntimeException('API key is missing for '.$connection->provider.'.');return $key;}public function test(ModelConnection $connection):bool{try{return $this->complete($connection,new \App\Core\Models\DTO\ModelRequest($connection->default_model?:$this->models()[0],'Answer with OK only.',[['role'=>'user','content'=>'ping']],[],8))->content!=='';}catch(\Throwable){return false;}}}

@@ -1,0 +1,19 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Google Search Console",
+  "slug": "google-search-console",
+  "version": "1.0.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\GoogleSearchConsoleConnector",
+  "capabilities": [
+    "network",
+    "read"
+  ],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://search.google.com/search-console/",
+  "docs_url": "https://developers.google.com/webmaster-tools",
+  "category": "SEO & search",
+  "icon": "https://www.google.com/s2/favicons?domain=search.google.com&sz=128"
+}

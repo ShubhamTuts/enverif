@@ -1,0 +1,8 @@
+server {
+    listen 80;
+    server_name docs.enverif.com;
+    root /var/www/docs.enverif.com;
+    index index.php;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location ~ \.php$ { include fastcgi_params; fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; fastcgi_pass unix:/run/php/php-fpm.sock; }
+}

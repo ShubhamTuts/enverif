@@ -1,0 +1,21 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Microsoft Outlook",
+  "slug": "outlook",
+  "version": "1.1.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\OutlookConnector",
+  "capabilities": [
+    "read",
+    "internal_write",
+    "network",
+    "external_write"
+  ],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://outlook.com/",
+  "docs_url": "https://learn.microsoft.com/graph/api/resources/mail-api-overview",
+  "category": "Email",
+  "icon": "https://www.google.com/s2/favicons?domain=outlook.com&sz=128"
+}

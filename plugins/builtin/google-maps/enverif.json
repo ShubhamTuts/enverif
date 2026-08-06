@@ -1,0 +1,19 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Google Maps Research",
+  "slug": "google-maps",
+  "version": "1.0.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\GoogleMapsConnector",
+  "capabilities": [
+    "network",
+    "external_write"
+  ],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://maps.google.com/",
+  "docs_url": "https://developers.google.com/maps",
+  "category": "Local research",
+  "icon": "https://www.google.com/s2/favicons?domain=maps.google.com&sz=128"
+}

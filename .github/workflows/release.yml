@@ -1,0 +1,192 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Existing semantic version tag to verify/build (for example v1.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref_name }}
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.guard.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_REF }}
+          fetch-depth: 0
+      - id: guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          EXPECTED="v${VERSION}"
+          if [[ "$RELEASE_REF" != "$EXPECTED" ]]; then
+            echo "Release ref $RELEASE_REF does not match VERSION ($EXPECTED)." >&2
+            exit 1
+          fi
+          [[ -s composer.lock ]] || { echo "composer.lock is required for release." >&2; exit 1; }
+          [[ -s package-lock.json ]] || { echo "package-lock.json is required for release." >&2; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime:
+          - { name: performance, queue: redis, cache: redis, redis_ext: redis }
+          - { name: shared, queue: database, cache: database, redis_ext: ':redis' }
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: enverif_release
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: ${{ matrix.runtime.queue }}
+      CACHE_STORE: ${{ matrix.runtime.cache }}
+      SESSION_DRIVER: database
+      ENVERIF_RUNTIME_MODE: ${{ matrix.runtime.name }}
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: enverif_release
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_REF }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip, ${{ matrix.runtime.redis_ext }}
+          coverage: none
+      - name: Verify Redis extension contract
+        shell: bash
+        run: |
+          if [[ "${{ matrix.runtime.name }}" == "shared" ]]; then
+            php -r 'exit(extension_loaded("redis") ? 1 : 0);'
+          else
+            php -r 'exit(extension_loaded("redis") ? 0 : 1);'
+          fi
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan migrate:fresh --force
+      - run: php artisan test
+      - run: php -d zend.assertions=1 -d assert.exception=1 tests/standalone/run.php
+      - run: php scripts/verify.php
+      - run: php artisan route:list --except-vendor
+
+  frontend-and-docs:
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_REF }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+      - run: npm run build
+      - run: php scripts/build-site.php
+      - run: php scripts/check-site.php
+      - name: Validate workflow YAML
+        shell: bash
+        run: |
+          ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f, aliases: true); puts "OK #{f}" }'
+
+  release:
+    needs: [guard, verify, frontend-and-docs]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_REF }}
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: ./scripts/build-release.sh "$GITHUB_WORKSPACE/dist"
+      - name: Inspect generated no-SSH package
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.guard.outputs.version }}"
+          TMP="$(mktemp -d)"
+          unzip -q "dist/enverif-${VERSION}-shared-hosting.zip" -d "$TMP"
+          ROOT="$TMP/enverif-${VERSION}"
+          test -f "$ROOT/artisan"
+          test -f "$ROOT/vendor/autoload.php"
+          test -f "$ROOT/.htaccess"
+          test -f "$ROOT/public/.htaccess"
+          test -f "$ROOT/README-INSTALL.txt"
+          test ! -e "$ROOT/.env"
+          test ! -e "$ROOT/.git"
+          test ! -e "$ROOT/node_modules"
+          (cd "$ROOT" && php artisan --version)
+          (cd dist && sha256sum -c SHA256SUMS.txt)
+      - name: Publish immutable GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="$RELEASE_REF"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to silently retarget it." >&2
+            exit 1
+          fi
+          gh release create "$TAG" dist/*.zip dist/SHA256SUMS.txt \
+            --target "$TAG" \
+            --title "Enverif $TAG" \
+            --generate-notes \
+            --notes "Enverif by Codefreex. Source, deterministic no-SSH shared-hosting package and standalone website/docs artifacts."

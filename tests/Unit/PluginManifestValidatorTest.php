@@ -1,0 +1,4 @@
+<?php
+namespace Tests\Unit;
+use App\Core\Plugins\PluginManifestValidator;use PHPUnit\Framework\TestCase;
+final class PluginManifestValidatorTest extends TestCase {public function test_valid_manifest():void{$m=PluginManifestValidator::validate(['schema'=>'enverif.plugin/v1','name'=>'CRM','slug'=>'crm','version'=>'1.0.0','type'=>'connector','driver'=>'Vendor\\CRM\\Driver','capabilities'=>['read','network'],'license'=>'MIT']);self::assertSame('crm',$m['slug']);}public function test_path_traversal_bootstrap_is_rejected():void{$this->expectException(\InvalidArgumentException::class);PluginManifestValidator::validate(['schema'=>'enverif.plugin/v1','name'=>'CRM','slug'=>'crm','version'=>'1.0.0','type'=>'connector','driver'=>'Vendor\\CRM\\Driver','bootstrap'=>'../evil.php','capabilities'=>[],'license'=>'MIT']);}}

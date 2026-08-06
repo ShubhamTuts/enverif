@@ -1,0 +1,19 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Google Analytics 4",
+  "slug": "google-analytics",
+  "version": "1.0.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\GoogleAnalyticsConnector",
+  "capabilities": [
+    "network",
+    "read"
+  ],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://analytics.google.com/",
+  "docs_url": "https://developers.google.com/analytics",
+  "category": "Analytics",
+  "icon": "https://www.google.com/s2/favicons?domain=analytics.google.com&sz=128"
+}

@@ -1,0 +1,7 @@
+@extends('layouts.app')
+@section('title',__('ui.workflows'))
+@section('content')
+<div class="page-head"><div><h1>{{ __('ui.workflows') }}</h1><p>{{ __('ui.workflows_desc') }}</p></div><a class="btn btn-primary" href="{{ route('workflows.create') }}">+ {{ __('ui.new_workflow') }}</a></div>
+<form class="filter-row" method="get"><input class="field" name="q" value="{{ request('q') }}" placeholder="{{ __('ui.search_workflows') }}"><select class="select" name="status"><option value="">{{ __('ui.all_statuses') }}</option>@foreach(['draft','active','paused'] as $s)<option value="{{ $s }}" @selected(request('status')===$s)>{{ ucfirst($s) }}</option>@endforeach</select><button class="btn">{{ __('ui.filter') }}</button></form>
+@if($workflows->isEmpty())<x-empty :title="__('ui.no_workflows')" :description="__('ui.no_workflows_desc')" />@else<div class="grid grid-3">@foreach($workflows as $workflow)<a class="card workflow-card" href="{{ route('workflows.show',$workflow) }}"><div class="between"><div class="workflow-icon">⌁</div><x-badge :status="$workflow->status" /></div><h3>{{ $workflow->name }}</h3><p>{{ $workflow->description ?: __('ui.durable_revenue_workflow') }}</p><div class="workflow-card-meta"><span>{{ count($workflow->definition['nodes']??[]) }} {{ __('ui.nodes') }}</span><span>{{ $workflow->runs_count }} {{ __('ui.runs') }}</span><span>v{{ $workflow->version }}</span></div></a>@endforeach</div><div class="card" style="margin-top:14px"><x-pagination :paginator="$workflows" /></div>@endif
+@endsection

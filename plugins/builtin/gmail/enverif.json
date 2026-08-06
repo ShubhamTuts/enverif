@@ -1,0 +1,21 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Gmail",
+  "slug": "gmail",
+  "version": "1.1.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\GmailConnector",
+  "capabilities": [
+    "read",
+    "internal_write",
+    "network",
+    "external_write"
+  ],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://mail.google.com/",
+  "docs_url": "https://developers.google.com/gmail/api",
+  "category": "Email",
+  "icon": "https://www.google.com/s2/favicons?domain=mail.google.com&sz=128"
+}

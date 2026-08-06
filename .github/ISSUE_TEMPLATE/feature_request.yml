@@ -1,0 +1,16 @@
+name: Feature request
+description: Propose an Enverif capability
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes: {label: Problem, description: What user problem should this solve?}
+    validations: {required: true}
+  - type: dropdown
+    id: track
+    attributes: {label: Contribution track, options: [Core, Plugin/Connector, Skill, Translation, UI/UX, Documentation]}
+    validations: {required: true}
+  - type: textarea
+    id: proposal
+    attributes: {label: Proposed solution}

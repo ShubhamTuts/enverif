@@ -1,0 +1,3 @@
+<?php
+namespace App\Core\Mcp;use App\Models\McpServer;
+final class McpManager {/** @return list<array<string,mixed>> */public function toolsForWorkspace(int $workspaceId):array{$all=[];foreach(McpServer::where('workspace_id',$workspaceId)->where('enabled',true)->get() as $server){try{foreach((new McpClient($server))->tools() as $tool){$tool['name']='mcp.'.$server->id.'.'.($tool['name']??'tool');$tool['server_id']=$server->id;$all[]=$tool;}}catch(\Throwable){}}return $all;}public function call(int $serverId,string $tool,array $arguments):mixed{$server=McpServer::findOrFail($serverId);return (new McpClient($server))->callTool($tool,$arguments);}}

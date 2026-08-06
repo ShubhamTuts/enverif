@@ -1,0 +1,19 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "n8n / Zapier / Make / Webhook",
+  "slug": "automation-webhook",
+  "version": "1.0.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\AutomationWebhookConnector",
+  "capabilities": [
+    "network",
+    "external_write"
+  ],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://n8n.io/",
+  "docs_url": "https://docs.n8n.io/",
+  "category": "Automation",
+  "icon": "https://www.google.com/s2/favicons?domain=n8n.io&sz=128"
+}

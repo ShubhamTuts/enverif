@@ -1,0 +1,3 @@
+<?php
+namespace App\Jobs;use App\Core\Agents\AgentOrchestrator;use Illuminate\Bus\Queueable;use Illuminate\Contracts\Queue\{ShouldQueue,ShouldBeUniqueUntilProcessing};use Illuminate\Foundation\Bus\Dispatchable;use Illuminate\Queue\InteractsWithQueue;use Illuminate\Queue\SerializesModels;
+class ContinueAgentRunJob implements ShouldQueue,ShouldBeUniqueUntilProcessing {use Dispatchable,InteractsWithQueue,Queueable,SerializesModels;public int $tries=3;public int $timeout=900;public int $uniqueFor=1800;public function __construct(public readonly string $runId){$this->onQueue('agents');}public function handle(AgentOrchestrator $orchestrator):void{$orchestrator->advance($this->runId);}public function uniqueId():string{return $this->runId;}}

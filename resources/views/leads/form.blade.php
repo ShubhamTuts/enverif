@@ -1,0 +1,12 @@
+@extends('layouts.app')
+@section('title', $lead->exists ? __('ui.edit').' '.($lead->name?:$lead->company) : __('ui.new_lead'))
+@section('content')
+<div class="page-head"><div><h1>{{ $lead->exists ? __('ui.edit').' '.($lead->name?:$lead->company) : __('ui.new_lead') }}</h1><p>{{ __('ui.lead_form_desc') }}</p></div><a class="btn" href="{{ $lead->exists ? route('leads.show',$lead) : route('leads.index') }}">{{ __('ui.cancel') }}</a></div>
+<form method="post" action="{{ $lead->exists ? route('leads.update',$lead) : route('leads.store') }}" class="card card-pad">@csrf @if($lead->exists)@method('PUT')@endif<div class="form-grid">
+@foreach([['first_name',__('ui.first_name'),'text'],['last_name',__('ui.last_name'),'text'],['email',__('ui.email'),'email'],['phone',__('ui.phone'),'text'],['title',__('ui.title'),'text'],['company',__('ui.company'),'text'],['website',__('ui.website'),'url'],['linkedin_url',__('ui.linkedin_url'),'url'],['city',__('ui.city'),'text'],['country',__('ui.country'),'text']] as $f)<div class="form-group"><label class="form-label">{{ $f[1] }}</label><input class="field" type="{{ $f[2] }}" name="{{ $f[0] }}" value="{{ old($f[0],$lead->{$f[0]}) }}"></div>@endforeach
+<div class="form-group"><label class="form-label">{{ __('ui.status') }}</label><select class="select" name="status">@foreach(['new','researching','qualified','contacted','replied','meeting','won','lost','disqualified'] as $s)<option value="{{ $s }}" @selected(old('status',$lead->status?:'new')===$s)>{{ ucfirst($s) }}</option>@endforeach</select></div>
+<div class="form-group"><label class="form-label">{{ __('ui.score') }}</label><input class="field" type="number" min="0" max="100" name="score" value="{{ old('score',$lead->score ?? 0) }}" required></div>
+<div class="form-group"><label class="form-label">{{ __('ui.source') }}</label><input class="field" name="source" value="{{ old('source',$lead->source) }}" placeholder="apollo, apify, referral…"></div><div class="form-group"><label class="form-label">{{ __('ui.source_url_label') }}</label><input class="field" type="url" name="source_url" value="{{ old('source_url',$lead->source_url) }}"></div>
+<div class="form-group full"><label class="form-label">{{ __('ui.research') }}</label><textarea class="textarea" name="research_summary" style="min-height:210px">{{ old('research_summary',$lead->research_summary) }}</textarea></div>
+</div><button class="btn btn-primary">{{ __('ui.save') }}</button></form>
+@endsection

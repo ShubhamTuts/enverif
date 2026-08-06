@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php }} · Redis runtime
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: enverif_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      SESSION_DRIVER: database
+      ENVERIF_RUNTIME_MODE: performance
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: enverif_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, redis, zip
+          coverage: none
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Bootstrap test application
+        run: cp .env.example .env && php artisan key:generate
+      - name: Standalone kernel tests
+        run: php -d zend.assertions=1 -d assert.exception=1 tests/standalone/run.php
+      - name: Release verifier
+        run: php scripts/verify.php
+      - name: Migrate schema
+        run: php artisan migrate:fresh --force
+      - name: Laravel tests
+        run: php artisan test
+      - name: Route boot check
+        run: php artisan route:list --except-vendor
+
+  shared-hosting:
+    name: PHP 8.4 · database runtime · no ext-redis
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: enverif_shared_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      ENVERIF_RUNTIME_MODE: shared
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: enverif_shared_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip, :redis
+          coverage: none
+      - name: Assert Redis extension is absent
+        run: |
+          php -r 'exit(extension_loaded("redis") ? 1 : 0);'
+      - name: Install PHP dependencies without Redis
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Bootstrap database runtime
+        run: cp .env.example .env && php artisan key:generate
+      - name: Migrate schema
+        run: php artisan migrate:fresh --force
+      - name: Laravel tests
+        run: php artisan test
+      - name: Standalone runtime tests
+        run: php -d zend.assertions=1 -d assert.exception=1 tests/standalone/run.php
+      - name: Route boot check
+        run: php artisan route:list --except-vendor
+
+  frontend-and-pages:
+    name: Frontend · docs · GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies
+        shell: bash
+        run: |
+          if [[ -f package-lock.json ]]; then npm ci; else npm install --no-audit --no-fund; fi
+      - run: npm run check
+      - run: npm run build
+      - run: php scripts/build-site.php
+      - run: php scripts/check-site.php
+      - name: Validate workflow YAML
+        run: |
+          ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f, aliases: true); puts "OK #{f}" }'

@@ -1,0 +1,24 @@
+Options -Indexes
+DirectoryIndex public/index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Never expose secrets, dependency metadata, source-only tooling or application internals.
+    RewriteRule (^|/)\.env(?:\..*)?$ - [F,L,NC]
+    RewriteRule (^|/)\.(?:git|github)(?:/|$) - [F,L,NC]
+    RewriteRule (^|/)\.(?!well-known(?:/|$))[^/]+(?:/|$) - [F,L,NC]
+    RewriteRule (^|/)(artisan|phpunit\.xml|composer\.(?:json|lock)|package(?:-lock)?\.json|vite\.config\.js)$ - [F,L,NC]
+    RewriteRule ^(?:app|bootstrap|config|database|lang|plugins|resources|routes|skills|storage|tests|vendor)(?:/|$) - [F,L,NC]
+
+    # If public/ is already in the request, do not recursively prefix it again.
+    RewriteRule ^public/ - [L]
+
+    # Critical shared-hosting rule: bare / must resolve to the front controller itself,
+    # not to the public directory (which can inherit a host DirectoryIndex and return 403).
+    RewriteRule ^$ public/index.php [L]
+
+    # Non-empty application paths are fronted through public/. public/.htaccess then
+    # sends virtual routes to index.php while allowing real public assets through.
+    RewriteRule ^(.+)$ public/$1 [L]
+</IfModule>

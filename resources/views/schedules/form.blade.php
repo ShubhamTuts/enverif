@@ -1,0 +1,16 @@
+@extends('layouts.app')
+@section('title', $schedule->exists ? __('ui.edit').' '.$schedule->name : __('ui.new_schedule'))
+@section('content')
+<div class="page-head"><div><h1>{{ $schedule->exists ? __('ui.edit').' '.$schedule->name : __('ui.new_schedule') }}</h1><p>{{ __('ui.schedule_calendar_desc') }}</p></div><a class="btn" href="{{ $schedule->exists?route('schedules.show',$schedule):route('schedules.index') }}">{{ __('ui.cancel') }}</a></div>
+@php $target=old('target_type',$schedule->workflow_id?'workflow':'agent'); @endphp
+<form method="post" action="{{ $schedule->exists ? route('schedules.update',$schedule) : route('schedules.store') }}" class="card card-pad" data-schedule-form>@csrf @if($schedule->exists)@method('PUT')@endif<div class="form-grid">
+<div class="form-group"><label class="form-label">{{ __('ui.name') }}</label><input class="field" name="name" value="{{ old('name',$schedule->name) }}" required></div>
+<div class="form-group"><label class="form-label">{{ __('ui.target_type') }}</label><select class="select" name="target_type" data-schedule-target><option value="agent" @selected($target==='agent')>{{ __('ui.agent') }}</option><option value="workflow" @selected($target==='workflow')>{{ __('ui.workflow') }}</option></select></div>
+<div class="form-group" data-agent-target @if($target!=='agent') hidden @endif><label class="form-label">{{ __('ui.agent') }}</label><select class="select" name="agent_id"><option value="">—</option>@foreach($agents as $a)<option value="{{ $a->id }}" @selected((string)old('agent_id',$schedule->agent_id)===(string)$a->id)>{{ $a->name }}</option>@endforeach</select></div>
+<div class="form-group" data-workflow-target @if($target!=='workflow') hidden @endif><label class="form-label">{{ __('ui.workflow') }}</label><select class="select" name="workflow_id"><option value="">—</option>@foreach($workflows as $workflow)<option value="{{ $workflow->id }}" @selected((string)old('workflow_id',$schedule->workflow_id)===(string)$workflow->id)>{{ $workflow->name }}</option>@endforeach</select></div>
+<div class="form-group"><label class="form-label">{{ __('ui.cron') }}</label><input class="field mono" name="cron_expression" value="{{ old('cron_expression',$schedule->cron_expression ?: '0 8 * * 1-5') }}" required><div class="help">{{ __('ui.cron_example') }}</div></div>
+<div class="form-group"><label class="form-label">{{ __('ui.timezone') }}</label><input class="field" name="timezone" value="{{ old('timezone',$schedule->timezone ?: ($currentWorkspace->timezone ?: 'UTC')) }}" required></div>
+<div class="form-group full"><label class="form-label">{{ __('ui.prompt_workflow_input') }}</label><textarea class="textarea" name="prompt" style="min-height:220px" required>{{ old('prompt',$schedule->prompt) }}</textarea><div class="help">{{ __('ui.workflow_input_help') }}</div></div>
+<div class="form-group full"><div class="switch-row"><div><div class="form-label">{{ __('ui.enabled') }}</div><div class="help">{{ __('ui.disabled_schedule_help') }}</div></div><label class="switch"><input type="checkbox" name="enabled" value="1" @checked(old('enabled',$schedule->exists?$schedule->enabled:true))><span></span></label></div></div>
+</div><button class="btn btn-primary">{{ __('ui.save') }}</button></form>
+@endsection

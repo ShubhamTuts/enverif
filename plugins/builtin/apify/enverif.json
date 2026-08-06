@@ -1,0 +1,19 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Apify Dynamic",
+  "slug": "apify",
+  "version": "1.0.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\ApifyConnector",
+  "capabilities": [
+    "network",
+    "external_write"
+  ],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://apify.com/",
+  "docs_url": "https://docs.apify.com/",
+  "category": "Prospecting & scraping",
+  "icon": "https://www.google.com/s2/favicons?domain=apify.com&sz=128"
+}

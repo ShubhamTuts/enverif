@@ -1,0 +1,6 @@
+@extends('layouts.app')
+@section('title', __('ui.audit'))
+@section('content')
+<div class="page-head"><div><h1>{{ __('ui.audit') }}</h1><p>{{ __('ui.audit_desc') }}</p></div><a class="btn" href="{{ route('audit.export') }}">↓ {{ __('ui.download_json') }}</a></div>
+<div class="card"><div class="toolbar"><form method="get"><input class="field" name="event" value="{{ request('event') }}" placeholder="Filter event…"><button class="btn">{{ __('ui.search') }}</button></form></div>@if($events->isEmpty())<x-empty :title="__('ui.empty_audit')" />@else<div class="table-wrap"><table class="table"><thead><tr><th>{{ __('ui.created') }}</th><th>{{ __('ui.event') }}</th><th>{{ __('ui.subject') }}</th><th>Run</th><th>{{ __('ui.hash') }}</th></tr></thead><tbody>@foreach($events as $e)<tr><td class="small muted nowrap">{{ $e->created_at?->format('M j H:i:s') }}</td><td class="row-title">{{ $e->event }}</td><td class="small">{{ $e->subject_type ? class_basename($e->subject_type).' #'.$e->subject_id : '—' }}</td><td>@if($e->run_id)<a class="mono small" href="{{ route('runs.show',$e->run_id) }}">{{ Str::limit($e->run_id,12) }}</a>@else—@endif</td><td class="mono small">{{ Str::limit($e->hash,16) }}</td></tr>@endforeach</tbody></table></div><x-pagination :paginator="$events" />@endif</div>
+@endsection

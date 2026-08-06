@@ -41,5 +41,18 @@ final class WorkflowController extends Controller
         if($workflow->status!=='active')return;$errors=$this->runtimeValidator->validate($workflow);if($errors){$workflow->update(['status'=>'draft']);throw ValidationException::withMessages(['definition'=>'Workflow stayed in Draft because runtime validation failed: '.implode(' ',$errors)]);}
     }
     private function formData(Workflow $workflow):array{return ['workflow'=>$workflow,'agents'=>Agent::where('status','active')->orderBy('name')->get(['id','name']),'connectors'=>ConnectorConnection::where('enabled',true)->orderBy('name')->get(['id','name','driver']),'skills'=>Skill::where(fn($q)=>$q->whereNull('workspace_id')->orWhere('workspace_id',session('workspace_id')))->where('status','active')->orderBy('name')->get(['id','name']),'campaigns'=>Campaign::orderBy('name')->get(['id','name']),'connectorCatalog'=>$this->connectorManager->catalog()];}
-    private function defaultDefinition():array{return ['nodes'=>[['id'=>'trigger_1','type'=>'manual','label'=>'Manual trigger','config'=>[],'position'=>['x'=>80,'y'=>180]],['id'=>'output_1','type'=>'output','label'=>'Output','config'=>[],'position'=>['x'=>420,'y'=>180]]],'edges'=>[['from'=>'trigger_1','to'=>'output_1','port'=>'default']]];}
+    /** Starter canvas: one Manual trigger only — operators drag additional nodes from the palette. */
+    private function defaultDefinition(): array
+    {
+        return [
+            'nodes' => [[
+                'id' => 'trigger_1',
+                'type' => 'manual',
+                'label' => 'Manual trigger',
+                'config' => [],
+                'position' => ['x' => 120, 'y' => 180],
+            ]],
+            'edges' => [],
+        ];
+    }
 }

@@ -34,7 +34,7 @@ window.Enverif={setTheme};
         const provider=providerSelect.value;
         const previous=preserve?modelSelect.value:'';
         const models=Array.isArray(catalog?.[provider])?catalog[provider]:[];
-        modelSelect.innerHTML='<option value="">Use provider default</option>'+models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model IDâ€¦</option>';
+        modelSelect.innerHTML='<option value="">Use provider default</option>'+models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model ID...</option>';
         modelSelect.disabled=!provider;
         if(provider&&[...modelSelect.options].some(option=>option.value===previous))modelSelect.value=previous;
         syncCustomModel();
@@ -61,7 +61,7 @@ document.querySelectorAll('[data-model-catalog]').forEach((form)=>{
     if(!provider||!model)return;
     const escapeOption=(value)=>String(value??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     function syncCustom(){const enabled=model.value==='__custom__';if(customWrap)customWrap.hidden=!enabled;if(custom){custom.required=enabled;custom.disabled=!enabled}}
-    function populate(preserve=true){const previous=preserve?model.value:'';const models=Array.isArray(catalog?.[provider.value])?catalog[provider.value]:[];model.innerHTML=models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model IDâ€¦</option>';if(preserve&&[...model.options].some(option=>option.value===previous))model.value=previous;syncCustom()}
+    function populate(preserve=true){const previous=preserve?model.value:'';const models=Array.isArray(catalog?.[provider.value])?catalog[provider.value]:[];model.innerHTML=models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model ID...</option>';if(preserve&&[...model.options].some(option=>option.value===previous))model.value=previous;syncCustom()}
     provider.addEventListener('change',()=>populate(false));
     model.addEventListener('change',syncCustom);
     populate(true);
@@ -78,7 +78,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     if(!connection||!model)return;
     const escapeOption=(value)=>String(value??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     function syncCustom(){const enabled=model.value==='__custom__';if(customWrap)customWrap.hidden=!enabled;if(custom){custom.required=enabled;custom.disabled=!enabled}}
-    function populate(preserve=true){const option=connection.options[connection.selectedIndex];const provider=option?.dataset.provider||'';const previous=preserve?model.value:'';const models=Array.isArray(catalog?.[provider])?catalog[provider]:[];model.innerHTML='<option value="">Use connection default</option>'+models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model IDâ€¦</option>';model.disabled=!connection.value;if(preserve&&[...model.options].some(item=>item.value===previous))model.value=previous;syncCustom()}
+    function populate(preserve=true){const option=connection.options[connection.selectedIndex];const provider=option?.dataset.provider||'';const previous=preserve?model.value:'';const models=Array.isArray(catalog?.[provider])?catalog[provider]:[];model.innerHTML='<option value="">Use connection default</option>'+models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model ID...</option>';model.disabled=!connection.value;if(preserve&&[...model.options].some(item=>item.value===previous))model.value=previous;syncCustom()}
     connection.addEventListener('change',()=>populate(false));
     model.addEventListener('change',syncCustom);
     populate(true);
@@ -193,7 +193,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 
     function updateStats() {
         if (statsLabel) {
-            statsLabel.textContent = `${definition.nodes.length} nodes Â· ${definition.edges.length} links`;
+            statsLabel.textContent = `${definition.nodes.length} nodes · ${definition.edges.length} links`;
         }
         if (canvasEmpty) {
             canvasEmpty.hidden = definition.nodes.length > 0;
@@ -349,13 +349,13 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         fieldBox.innerHTML = html;
         if (node.type === 'connector') refreshActions(node);
         connectButton.hidden = node.type === 'condition';
-        connectButton.textContent = connecting ? 'Connectingâ€¦' : 'Connect toâ€¦';
+        connectButton.textContent = connecting ? 'Connecting...' : 'Connect to...';
         if (clearEdgesButton) {
             clearEdgesButton.hidden = !definition.edges.some((edge) => edge.from === node.id);
         }
         connectHelp.textContent = connecting
             ? `Click an input port (or node) for the ${connecting.port} branch. Esc cancels.`
-            : 'Drag from the green output port, or use Connect. Click a link to select, Del removes it.';
+            : 'Drag from the output port, or use Connect. Click a link to select, Del removes it.';
         bindFields(node);
     }
 
@@ -365,7 +365,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         const select = fieldBox.querySelector('[data-action-select]');
         if (!select) return;
 
-        select.innerHTML = '<option value="">Choose action</option>' + actions.map((action) => `<option value="${escapeHtml(action.name)}" ${node.config.action === action.name ? 'selected' : ''}>${escapeHtml(action.name)} Â· ${escapeHtml(action.risk)}</option>`).join('');
+        select.innerHTML = '<option value="">Choose action</option>' + actions.map((action) => `<option value="${escapeHtml(action.name)}" ${node.config.action === action.name ? 'selected' : ''}>${escapeHtml(action.name)} · ${escapeHtml(action.risk)}</option>`).join('');
     }
 
     function bindFields(node) {
@@ -573,9 +573,14 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 
         selectedId = id;
         selectedEdgeIndex = null;
-        renderNodes();
+        // Update selection in place — full re-render would destroy this element and break pointer capture / drag.
+        stage.querySelectorAll('.workflow-node').forEach((el) => {
+            el.classList.toggle('selected', el.dataset.nodeId === id);
+            el.classList.toggle('connect-target', Boolean(connecting && el.dataset.nodeId !== connecting.from));
+        });
         inspectNode();
         const node = nodeById(id);
+        if (!node) return;
         drag = {
             node,
             startX: event.clientX,
@@ -583,7 +588,9 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             x: node.position?.x || 0,
             y: node.position?.y || 0,
         };
-        element.setPointerCapture?.(event.pointerId);
+        try {
+            element.setPointerCapture?.(event.pointerId);
+        } catch (_) {}
         event.preventDefault();
     });
 
@@ -657,7 +664,13 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 
     root.querySelectorAll('[data-node-type]').forEach((button) => {
         button.addEventListener('click', () => addNode(button.dataset.nodeType));
-        button.addEventListener('dragstart', (event) => event.dataTransfer?.setData('text/enverif-node', button.dataset.nodeType));
+        button.addEventListener('dragstart', (event) => {
+            const type = button.dataset.nodeType || '';
+            // text/plain is required — some browsers strip custom MIME types on drop.
+            event.dataTransfer?.setData('text/plain', type);
+            event.dataTransfer?.setData('text/enverif-node', type);
+            if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+        });
     });
 
     root.querySelector('[data-palette-search]')?.addEventListener('input', (event) => {
@@ -674,14 +687,21 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         });
     });
 
-    canvas.addEventListener('dragover', (event) => event.preventDefault());
-    canvas.addEventListener('drop', (event) => {
+    const acceptDrop = (event) => {
         event.preventDefault();
-        const type = event.dataTransfer?.getData('text/enverif-node');
-        if (!type) return;
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    };
+    canvas.addEventListener('dragover', acceptDrop);
+    stage.addEventListener('dragover', acceptDrop);
+    const onDrop = (event) => {
+        event.preventDefault();
+        const type = event.dataTransfer?.getData('text/enverif-node') || event.dataTransfer?.getData('text/plain');
+        if (!type || !labels[type]) return;
         const rect = canvas.getBoundingClientRect();
         addNode(type, (event.clientX - rect.left + canvas.scrollLeft) / scale, (event.clientY - rect.top + canvas.scrollTop) / scale, false);
-    });
+    };
+    canvas.addEventListener('drop', onDrop);
+    stage.addEventListener('drop', onDrop);
 
     root.querySelectorAll('[data-workflow-zoom]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -762,7 +782,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     };
     const updateDocumentTitle = (title) => {
         if (!title) return;
-        document.title = `${title} Â· Enverif`;
+        document.title = `${title} · Enverif`;
         const crumb = document.querySelector('[data-page-crumb]');
         if (crumb) crumb.textContent = title;
     };
@@ -785,13 +805,26 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     };
     const refreshPills = () => {
         if (!selected || !form) return;
-        const chosen = [...form.querySelectorAll('.context-option input:checked')];
-        selected.innerHTML = chosen.slice(0, 8).map((input) => {
+        // Checkbox context only (skills/plugins/workflows/leads/campaigns). Agent lives in Run settings.
+        const chosen = [...form.querySelectorAll('.context-option input[type="checkbox"]:checked')];
+        selected.innerHTML = chosen.slice(0, 10).map((input) => {
             const option = input.closest('.context-option');
             const name = option?.querySelector('b')?.textContent || 'Context';
             const type = option?.dataset.contextType || 'context';
-            return `<span class="context-pill">@${escape(type)} ${escape(name)}</span>`;
-        }).join('') + (chosen.length > 8 ? `<span class="context-pill">+${chosen.length - 8}</span>` : '');
+            return `<span class="context-pill" data-pill-value="${escape(input.value)}" data-pill-name="${escape(input.name)}"><span>@${escape(type)} ${escape(name)}</span><button type="button" class="context-pill-remove" data-remove-context aria-label="Remove ${escape(name)}">×</button></span>`;
+        }).join('') + (chosen.length > 10 ? `<span class="context-pill">+${chosen.length - 10}</span>` : '');
+        selected.hidden = chosen.length === 0;
+    };
+    const removeContextPill = (pill) => {
+        if (!pill || !form) return;
+        const name = pill.dataset.pillName || '';
+        const value = pill.dataset.pillValue || '';
+        const input = [...form.querySelectorAll('.context-option input[type="checkbox"]')].find((el) => el.name === name && String(el.value) === String(value));
+        if (input) {
+            input.checked = false;
+            input.dispatchEvent(new Event('change', {bubbles: true}));
+        }
+        refreshPills();
     };
     const selectedConnection = () => connectionSelect?.selectedOptions?.[0];
     const toggleCustomModel = () => {
@@ -807,7 +840,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         const models = modelCatalog[provider] || [];
         modelSelect.innerHTML = '<option value="">Connection default</option>'
             + models.map((id) => `<option value="${escape(id)}">${escape(id)}</option>`).join('')
-            + '<option value="__custom__">Custom modelâ€¦</option>';
+            + '<option value="__custom__">Custom model...</option>';
         if ([...modelSelect.options].some((option) => option.value === previous)) {
             modelSelect.value = previous;
         } else if (previous) {
@@ -822,7 +855,10 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         attachmentPreview.innerHTML = files.map((file) => `<span class="attachment-chip"><b>${escape(file.name)}</b><small>${Math.max(0.1, file.size / 1024).toFixed(1)} KB</small></span>`).join('');
     };
     const clearTurnInputs = () => {
-        if (prompt) prompt.value = '';
+        if (prompt) {
+            prompt.value = '';
+            prompt.style.height = '';
+        }
         if (attachments) attachments.value = '';
         form?.querySelectorAll('.context-option input[type="checkbox"]').forEach((input) => { input.checked = false; });
         if (search) search.value = '';
@@ -830,6 +866,8 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         previewAttachments();
         refreshPills();
         resize();
+        // Keep focus in a stable composer after send — avoids visual collapse/jump.
+        prompt?.focus({preventScroll: true});
     };
     const terminal = (status) => ['completed', 'failed', 'cancelled'].includes(status || '');
     const applyStatus = (data) => {
@@ -838,7 +876,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         const stage = shell.querySelector('[data-chat-stage]');
         if (stage && data?.run?.stage) stage.textContent = data.run.stage;
     };
-    const schedulePoll = (delay = 1600) => {
+    const schedulePoll = (delay = 900) => {
         if (!statusUrl) return;
         if (pollTimer) window.clearTimeout(pollTimer);
         pollTimer = window.setTimeout(poll, delay);
@@ -854,15 +892,19 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             if (response.ok) {
                 const data = await response.json();
                 applyStatus(data);
-                if (!data.run || terminal(data.run.status)) {
-                    setBusy(false);
+                const stillBusy = Boolean(data.busy) || (data.run && !terminal(data.run.status)) || Boolean(shell.querySelector('[data-chat-thinking]'));
+                if (stillBusy) {
+                    setBusy(true);
+                    schedulePoll(900);
                     return;
                 }
+                setBusy(false);
+                return;
             }
         } catch (_) {
             // Keep polling transient network/server errors. The durable run remains authoritative.
         }
-        schedulePoll(1800);
+        schedulePoll(1600);
     };
 
     prompt?.addEventListener('input', () => {
@@ -949,6 +991,12 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         refreshPills();
     });
     search?.addEventListener('input', () => filterContext(search.value));
+    selected?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-remove-context]');
+        if (!button) return;
+        event.preventDefault();
+        removeContextPill(button.closest('.context-pill'));
+    });
     shell.querySelectorAll('[data-suggest]').forEach((button) => button.addEventListener('click', () => {
         if (!prompt) return;
         prompt.value = button.dataset.suggest || '';
@@ -965,6 +1013,8 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 
         showError('');
         setBusy(true);
+        // Preserve composer chrome height while the request is in flight.
+        form.style.minHeight = `${Math.max(form.offsetHeight, 112)}px`;
 
         try {
             const response = await fetch(form.action, {
@@ -995,10 +1045,13 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             updateDocumentTitle(data.title);
             if (data.transcript_html) renderTranscript(data.transcript_html);
             clearTurnInputs();
-            schedulePoll(500);
+            schedulePoll(400);
         } catch (error) {
             setBusy(false);
             showError(error instanceof Error ? error.message : 'Unable to send the message.');
+        } finally {
+            // Release the temporary lock after layout settles.
+            window.setTimeout(() => { if (form) form.style.minHeight = ''; }, 320);
         }
     });
 
@@ -1010,7 +1063,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 
     if (statusUrl && shell.querySelector('[data-chat-thinking]')) {
         setBusy(true);
-        schedulePoll(800);
+        schedulePoll(400);
     }
 })();
 // Schedule target switcher.

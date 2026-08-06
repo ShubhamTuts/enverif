@@ -44,6 +44,10 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
+## Enverif 1.3.7
+
+The 1.3.7 release fixes chat live progress (queue re-kick while polling), stops the composer from collapsing after send, adds removable context tags, and repairs workflow node dragging / palette drop plus a cleaner single-trigger starter canvas.
+
 ## Enverif 1.3.6
 
 The 1.3.6 release upgrades the visual workflow studio toward an n8n-style builder (grouped palette, port links, pan, auto-layout, edge editing) and adds a first-party **Google Sheets** OAuth connector with real Google Sheets branding. Plugin action schemas are exposed to the workflow inspector so connector nodes are easier to wire end-to-end.

@@ -2,6 +2,20 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.7 — 2026-08-06
+
+### Bug fixes
+- Chat composer no longer visually collapses after send; height is locked during the request and focus returns to a stable input.
+- Context tags (skills/plugins/workflows/leads/campaigns) are removable with an × control.
+- Live chat progress: status polling keeps the shared-hosting queue draining and continues until the run finishes (no manual refresh required for responses).
+- Workflow node dragging works again (selection no longer destroys the node under pointer capture).
+- Workflow palette drag-and-drop uses `text/plain` fallback so drops work in browsers that strip custom MIME types.
+- Workflow edge SVG no longer steals pointer events from nodes.
+- New workflows start with a single Manual trigger (removed the confusing pre-wired Output pair).
+
+### UI
+- Chat thinking indicator shows live stage text; composer/response width aligned closer to a clean ChatGPT-style bar.
+
 ## 1.3.6 — 2026-08-06
 
 ### Features

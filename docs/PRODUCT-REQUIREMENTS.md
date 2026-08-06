@@ -2,7 +2,11 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.3.6
+**Target release:** 1.3.7
+
+### 1.3.7 chat live progress + workflow studio reliability
+
+Version 1.3.7 fixes chat composer collapse after send, removable context tags, live status polling with queue re-kick (no refresh required), workflow node drag/drop/connectors, and a single-trigger starter canvas.
 
 ### 1.3.6 workflow studio + Google Sheets addendum
 

@@ -444,7 +444,7 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
 $tests['release source reports semantic version from VERSION file'] = function (): void {
     $version = trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION'));
     assert(preg_match('/^\d+\.\d+\.\d+$/', $version) === 1);
-    assert($version === '1.3.6');
+    assert($version === '1.3.7');
 };
 
 
@@ -697,8 +697,19 @@ $tests['tool schema normalizer encodes empty properties as JSON objects'] = func
     assert(str_contains($workflowForm, 'data-node-label-input'));
     assert(str_contains($workflowJs, 'data-port-out'));
     assert(str_contains($workflowJs, 'autoLayout'));
+    assert(str_contains($workflowJs, "setData('text/plain'"));
+    assert(str_contains($workflowJs, 'Update selection in place'));
     $oauth = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ConnectorOAuthController.php');
     assert(str_contains($oauth, 'google_sheets'));
+    $chatJs = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/app.js');
+    assert(str_contains($chatJs, 'data-remove-context'));
+    assert(str_contains($chatJs, 'stillBusy'));
+    $chatController = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ChatController.php');
+    assert(str_contains($chatController, 'WebQueueKick $queueKick'));
+    assert(str_contains($chatController, "'busy'"));
+    $workflowController = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/WorkflowController.php');
+    assert(str_contains($workflowController, 'one Manual trigger'));
+    assert(! str_contains($workflowController, "'output_1'"));
 };
 
 $tests['credential decrypt failures surface actionable recovery copy'] = function (): void {

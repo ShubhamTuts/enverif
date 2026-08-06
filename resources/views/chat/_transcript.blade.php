@@ -100,11 +100,14 @@
     @if($lastUser && ! $hasAssistant)
         <div class="chat-thinking" data-chat-thinking>
             <img src="{{ asset('assets/enverif-mark.svg') }}" alt="">
+            <div class="chat-thinking-copy">
+                <strong data-chat-stage>{{ $thread->defaultAgent?->name ?? __('ui.agent') }} {{ __('ui.is_working') }}</strong>
+                <small>Live run progress updates automatically — no refresh needed.</small>
+            </div>
             <span></span><span></span><span></span>
-            <em data-chat-stage>{{ $thread->defaultAgent?->name ?? __('ui.agent') }} {{ __('ui.is_working') }}</em>
             <form method="post" action="{{ route('chat.stop', $thread) }}">
                 @csrf
-                <button class="btn btn-sm">Stop</button>
+                <button class="btn btn-sm" type="submit">Stop</button>
             </form>
         </div>
     @endif

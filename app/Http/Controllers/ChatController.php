@@ -209,7 +209,7 @@ final class ChatController extends Controller
         return redirect()->to($threadUrl);
     }
 
-    public function status(Request $request, ChatThread $thread)
+    public function status(Request $request, ChatThread $thread, WebQueueKick $queueKick)
     {
         $this->authorizeThread($request, $thread);
         $this->syncTerminalMessages($thread);
@@ -227,18 +227,24 @@ final class ChatController extends Controller
         $latestRunId = $thread->messages()->whereNotNull('run_id')->latest('id')->value('run_id');
         $run = $latestRunId ? AgentRun::find($latestRunId) : null;
         $latestStep = $run?->steps()->latest('sequence')->first();
+        // Shared hosting: keep draining the agent queue while the browser polls, so live
+        // progress does not stall until the next cron tick or a full page refresh.
+        if ($run && ! in_array($run->status, ['completed', 'failed', 'cancelled'], true)) {
+            $queueKick->afterResponse(12);
+        }
         $thread = $thread->fresh()->load(['messages.attachments', 'defaultAgent']);
         return response()->json([
             'messages' => $messages,
             'transcript_html' => $this->renderTranscript($request, $thread),
             'title' => $thread->title,
+            'busy' => $run ? ! in_array($run->status, ['completed', 'failed', 'cancelled'], true) : false,
             'run' => $run ? [
                 'id' => $run->id,
                 'status' => $run->status,
                 'output' => $run->output,
                 'stop_reason' => $run->stop_reason,
                 'execution' => data_get($run->context, 'execution'),
-                'stage' => $run->status === 'awaiting_approval' ? 'Waiting for approval' : ($latestStep?->tool ? 'Using '.$latestStep->tool : ($run->status === 'running' ? 'Thinking' : ucfirst(str_replace('_',' ',$run->status)))),
+                'stage' => $run->status === 'awaiting_approval' ? 'Waiting for approval' : ($latestStep?->tool ? 'Using '.$latestStep->tool : ($run->status === 'running' || $run->status === 'queued' ? 'Thinking' : ucfirst(str_replace('_',' ',$run->status)))),
             ] : null,
         ]);
     }

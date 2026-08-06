@@ -796,12 +796,55 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         live.innerHTML = html;
         scrollToBottom();
     };
+    const mentionHaystack = (item) => `${item.dataset.search || ''} ${item.dataset.contextType || ''} ${item.textContent}`.toLowerCase();
+    const stripMentionTrigger = () => {
+        if (!prompt) return;
+        const before = prompt.value.slice(0, prompt.selectionStart ?? prompt.value.length);
+        const after = prompt.value.slice(prompt.selectionStart ?? prompt.value.length);
+        const cleaned = before.replace(/(?<=^|\s)@[\w-]*$/, '');
+        if (cleaned === before) return;
+        prompt.value = cleaned + after;
+        const pos = cleaned.length;
+        prompt.setSelectionRange(pos, pos);
+        resize();
+    };
     const filterContext = (query = '') => {
         const normalized = query.trim().toLowerCase().replace(/^@/, '');
+        const scored = [];
         shell.querySelectorAll('[data-context-item]').forEach((item) => {
-            const haystack = `${item.dataset.contextType || ''} ${item.textContent}`.toLowerCase();
-            item.hidden = normalized !== '' && !haystack.includes(normalized);
+            const haystack = mentionHaystack(item);
+            const label = (item.querySelector('b')?.textContent || '').toLowerCase();
+            const slugBit = (item.dataset.search || '').toLowerCase();
+            let rank = -1;
+            if (normalized === '') rank = 0;
+            else if (label === normalized || slugBit.split(/\s+/).includes(normalized)) rank = 3;
+            else if (label.startsWith(normalized) || slugBit.startsWith(normalized)) rank = 2;
+            else if (haystack.includes(normalized)) rank = 1;
+            const match = rank >= 0;
+            item.hidden = !match;
+            item.classList.toggle('is-mention-active', false);
+            if (match) scored.push({item, rank});
         });
+        shell.querySelectorAll('.context-groups section').forEach((section) => {
+            const visible = [...section.querySelectorAll('[data-context-item]')].some((item) => !item.hidden);
+            section.hidden = !visible;
+        });
+        scored.sort((a, b) => b.rank - a.rank);
+        const firstVisible = scored[0]?.item || null;
+        if (firstVisible) firstVisible.classList.add('is-mention-active');
+        return firstVisible;
+    };
+    const selectMentionItem = (item) => {
+        if (!item) return false;
+        const input = item.querySelector('input');
+        if (!input) return false;
+        // @mention always selects (adds) — never toggles a tag off.
+        input.checked = true;
+        input.dispatchEvent(new Event('change', {bubbles: true}));
+        stripMentionTrigger();
+        if (menu) menu.hidden = true;
+        refreshPills();
+        return true;
     };
     const refreshPills = () => {
         if (!selected || !form) return;
@@ -811,7 +854,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             const option = input.closest('.context-option');
             const name = option?.querySelector('b')?.textContent || 'Context';
             const type = option?.dataset.contextType || 'context';
-            return `<span class="context-pill" data-pill-value="${escape(input.value)}" data-pill-name="${escape(input.name)}"><span>@${escape(type)} ${escape(name)}</span><button type="button" class="context-pill-remove" data-remove-context aria-label="Remove ${escape(name)}">×</button></span>`;
+            return `<span class="context-pill" data-pill-value="${escape(input.value)}" data-pill-name="${escape(input.name)}"><span>@${escape(type)} ${escape(name)}</span><button type="button" class="context-pill-remove" data-remove-context aria-label="Remove ${escape(name)}">&times;</button></span>`;
         }).join('') + (chosen.length > 10 ? `<span class="context-pill">+${chosen.length - 10}</span>` : '');
         selected.hidden = chosen.length === 0;
     };
@@ -873,6 +916,11 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     const applyStatus = (data) => {
         if (data?.transcript_html) renderTranscript(data.transcript_html);
         if (data?.title) updateDocumentTitle(data.title);
+        const done = data?.busy === false || (data?.run && terminal(data.run.status));
+        if (done) {
+            shell.querySelector('[data-chat-thinking]')?.remove();
+            return;
+        }
         const stage = shell.querySelector('[data-chat-stage]');
         if (stage && data?.run?.stage) stage.textContent = data.run.stage;
     };
@@ -892,7 +940,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             if (response.ok) {
                 const data = await response.json();
                 applyStatus(data);
-                const stillBusy = Boolean(data.busy) || (data.run && !terminal(data.run.status)) || Boolean(shell.querySelector('[data-chat-thinking]'));
+                const stillBusy = Boolean(data.busy) || (data.run && !terminal(data.run.status));
                 if (stillBusy) {
                     setBusy(true);
                     schedulePoll(900);
@@ -909,20 +957,52 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 
     prompt?.addEventListener('input', () => {
         resize();
-        const before = prompt.value.slice(0, prompt.selectionStart);
+        const before = prompt.value.slice(0, prompt.selectionStart ?? prompt.value.length);
         const match = before.match(/(?:^|\s)@([\w-]*)$/);
         if (match && menu) {
             menu.hidden = false;
             if (search) search.value = match[1] || '';
             filterContext(match[1] || '');
-        } else if (!match && menu && !menu.hidden) {
+        } else if (!match && menu && !menu.hidden && document.activeElement !== search) {
             menu.hidden = true;
         }
     });
     prompt?.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && menu && !menu.hidden) {
-            menu.hidden = true;
-            return;
+        if (menu && !menu.hidden) {
+            if (event.key === 'Escape') {
+                menu.hidden = true;
+                event.preventDefault();
+                return;
+            }
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                const items = [...shell.querySelectorAll('[data-context-item]:not([hidden])')];
+                if (!items.length) return;
+                const current = items.findIndex((item) => item.classList.contains('is-mention-active'));
+                items.forEach((item) => item.classList.remove('is-mention-active'));
+                let next = current < 0 ? 0 : current + (event.key === 'ArrowDown' ? 1 : -1);
+                if (next < 0) next = items.length - 1;
+                if (next >= items.length) next = 0;
+                items[next].classList.add('is-mention-active');
+                items[next].scrollIntoView({block: 'nearest'});
+                return;
+            }
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                const active = shell.querySelector('[data-context-item].is-mention-active:not([hidden])')
+                    || shell.querySelector('[data-context-item]:not([hidden])');
+                selectMentionItem(active);
+                return;
+            }
+            if (event.key === 'Tab') {
+                const active = shell.querySelector('[data-context-item].is-mention-active:not([hidden])')
+                    || shell.querySelector('[data-context-item]:not([hidden])');
+                if (active) {
+                    event.preventDefault();
+                    selectMentionItem(active);
+                }
+                return;
+            }
         }
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -948,18 +1028,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             agentSelect.value = input.value;
             agentSelect.dispatchEvent(new Event('change'));
         }
-        // Remove the @... trigger text from the prompt when an item is picked via context menu
-        if (prompt && input.checked) {
-            const before = prompt.value.slice(0, prompt.selectionStart);
-            const after = prompt.value.slice(prompt.selectionStart);
-            const cleaned = before.replace(/(?<=^|\s)@[\w-]*$/, '');
-            if (cleaned !== before) {
-                prompt.value = cleaned + after;
-                const pos = cleaned.length;
-                prompt.setSelectionRange(pos, pos);
-                resize();
-            }
-        }
+        if (input.checked) stripMentionTrigger();
         if (menu) menu.hidden = true;
         refreshPills();
     }));

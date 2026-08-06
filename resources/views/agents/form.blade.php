@@ -35,22 +35,45 @@
 <div class="form-group"><label class="form-label">{{ __('ui.allow_tools') }}</label><textarea class="textarea mono" name="allow_tools" style="min-height:80px">{{ old('allow_tools',implode("\n",data_get($agent->policy,'allow',[]))) }}</textarea></div>
 <div class="form-group"><label class="form-label">{{ __('ui.deny_tools') }}</label><textarea class="textarea mono" name="deny_tools" style="min-height:80px">{{ old('deny_tools',implode("\n",data_get($agent->policy,'deny',[]))) }}</textarea></div>
 </aside>
-@php($creative = (array) data_get($agent->settings, 'creative', []))
+@php
+    $creative = (array) data_get($agent->settings, 'creative', []);
+    $creativeEnabled = (bool) old('creative_enabled', data_get($creative, 'enabled', data_get($creative, 'image_generation', false)));
+    $imageModelOptions = $imageModelOptions ?? [];
+@endphp
 <section class="card card-pad span-2" data-creative-panel>
     <div class="between" style="align-items:flex-start;gap:16px;margin-bottom:12px">
         <div>
             <h3 class="section-title" style="margin:0">Creative & social publishing</h3>
-            <p class="muted" style="margin:6px 0 0;font-size:12px">Enable for agents like Lisa that draft/schedule social posts via Buffer and reply in Slack. External sends still require approval unless autonomous writes are enabled.</p>
+            <p class="muted" style="margin:6px 0 0;font-size:12px">Turn on for agents that draft/schedule social posts (Buffer) or reply in Slack. External sends still require approval unless autonomous writes are enabled.</p>
         </div>
-        <label class="switch"><input type="checkbox" name="creative_image_generation" value="1" data-creative-toggle @checked(old('creative_image_generation', data_get($creative, 'image_generation', false)))><span></span></label>
+        <label class="switch"><input type="checkbox" name="creative_enabled" value="1" data-creative-toggle @checked($creativeEnabled)><span></span></label>
     </div>
-    <div class="form-grid" data-creative-fields @if(!old('creative_image_generation', data_get($creative, 'image_generation', false))) hidden @endif>
+    <div class="form-grid" data-creative-fields @if(! $creativeEnabled) hidden @endif>
         <div class="form-group"><label class="form-label">Brand name</label><input class="field" name="creative_brand_name" value="{{ old('creative_brand_name', data_get($creative, 'brand_name')) }}" maxlength="120"></div>
         <div class="form-group"><label class="form-label">Brand logo URL</label><input class="field" name="creative_logo_url" value="{{ old('creative_logo_url', data_get($creative, 'logo_url')) }}" placeholder="https://…" maxlength="500"></div>
         <div class="form-group full"><label class="form-label">Brand voice</label><textarea class="textarea" name="creative_brand_voice" style="min-height:90px" maxlength="2000">{{ old('creative_brand_voice', data_get($creative, 'brand_voice')) }}</textarea></div>
         <div class="form-group full"><label class="form-label">Sample posts / style references</label><textarea class="textarea" name="creative_sample_posts" style="min-height:110px" maxlength="5000" placeholder="Paste 2–5 example posts the agent should emulate">{{ old('creative_sample_posts', data_get($creative, 'sample_posts')) }}</textarea></div>
         <div class="form-group"><label class="form-label">Default Buffer channel ID</label><input class="field mono" name="creative_buffer_channel_id" value="{{ old('creative_buffer_channel_id', data_get($creative, 'default_buffer_channel_id')) }}" maxlength="120"></div>
         <div class="form-group"><label class="form-label">Default Slack channel</label><input class="field mono" name="creative_slack_channel" value="{{ old('creative_slack_channel', data_get($creative, 'default_slack_channel')) }}" placeholder="C0123… or #marketing" maxlength="120"></div>
+        <div class="form-group full" data-creative-image-block>
+            <label class="form-label">Image generation model</label>
+            @if(count($imageModelOptions))
+                <select class="select" name="creative_image_model_key">
+                    <option value="">No image model</option>
+                    @foreach($imageModelOptions as $option)
+                        @php($key = $option['connection_id'].'|'.$option['model'])
+                        <option value="{{ $key }}" @selected(old('creative_image_model_key', data_get($creative, 'image_connection_id').'|'.data_get($creative, 'image_model')) === $key)>
+                            {{ $option['connection'] }} · {{ $option['provider'] }} · {{ $option['model'] }}
+                        </option>
+                    @endforeach
+                </select>
+                <div class="help">Pulled from enabled OpenAI / Gemini connections that expose image models.</div>
+            @else
+                <div class="notice" style="margin:0">
+                    Connect an <strong>OpenAI</strong> or <strong>Gemini</strong> model under <a href="{{ route('models.create') }}">AI Models</a> to choose image generation models here.
+                </div>
+            @endif
+        </div>
     </div>
 </section>
 <div class="span-2"><button class="btn btn-primary" type="submit">{{ __('ui.save') }}</button></div>

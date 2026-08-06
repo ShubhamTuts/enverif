@@ -212,7 +212,7 @@
                             <section>
                                 <strong>{{ __('ui.agents') }}</strong>
                                 @forelse($agents as $agent)
-                                    <label class="context-option" data-context-item data-context-type="agent">
+                                    <label class="context-option" data-context-item data-context-type="agent" data-search="{{ strtolower($agent->name.' agent '.$agent->slug) }}">
                                         <input type="radio" name="agent_context" value="{{ $agent->id }}" @checked((int) $selectedAgentId === $agent->id) data-agent-context>
                                         <span class="context-icon agent">
                                             @if($agent->avatar_path)
@@ -234,7 +234,7 @@
                             <section>
                                 <strong>{{ __('ui.plugins') }}</strong>
                                 @foreach($connectors as $connector)
-                                    <label class="context-option" data-context-item data-context-type="plugin">
+                                    <label class="context-option" data-context-item data-context-type="plugin" data-search="{{ strtolower($connector->name.' plugin '.$connector->driver) }}">
                                         <input type="checkbox" name="connector_ids[]" value="{{ $connector->id }}">
                                         <span class="context-icon plugin">
                                             <img src="{{ \App\Core\Plugins\PluginPresentation::iconFor($connector->driver) }}" alt="">
@@ -250,7 +250,7 @@
                             <section>
                                 <strong>{{ __('ui.skills') }}</strong>
                                 @foreach($skills as $skill)
-                                    <label class="context-option" data-context-item data-context-type="skill">
+                                    <label class="context-option" data-context-item data-context-type="skill" data-search="{{ strtolower($skill->name.' skill '.$skill->slug) }}">
                                         <input type="checkbox" name="skill_ids[]" value="{{ $skill->id }}">
                                         <span class="context-icon skill">S</span>
                                         <span>
@@ -264,7 +264,7 @@
                             <section>
                                 <strong>{{ __('ui.workflows') }}</strong>
                                 @foreach($workflows as $workflow)
-                                    <label class="context-option" data-context-item data-context-type="workflow">
+                                    <label class="context-option" data-context-item data-context-type="workflow" data-search="{{ strtolower($workflow->name.' workflow') }}">
                                         <input type="checkbox" name="workflow_ids[]" value="{{ $workflow->id }}">
                                         <span class="context-icon workflow">W</span>
                                         <span>
@@ -278,7 +278,7 @@
                             <section>
                                 <strong>Leads</strong>
                                 @foreach($leads as $lead)
-                                    <label class="context-option" data-context-item data-context-type="lead">
+                                    <label class="context-option" data-context-item data-context-type="lead" data-search="{{ strtolower(trim($lead->first_name.' '.$lead->last_name).' '.$lead->company.' '.$lead->email.' lead') }}">
                                         <input type="checkbox" name="lead_ids[]" value="{{ $lead->id }}">
                                         <span class="context-icon lead">L</span>
                                         <span>
@@ -292,7 +292,7 @@
                             <section>
                                 <strong>Campaigns</strong>
                                 @foreach($campaigns as $campaign)
-                                    <label class="context-option" data-context-item data-context-type="campaign">
+                                    <label class="context-option" data-context-item data-context-type="campaign" data-search="{{ strtolower($campaign->name.' campaign') }}">
                                         <input type="checkbox" name="campaign_ids[]" value="{{ $campaign->id }}">
                                         <span class="context-icon campaign">C</span>
                                         <span><b>{{ $campaign->name }}</b></span>

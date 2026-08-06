@@ -225,12 +225,26 @@ final class ChatController extends Controller
             'created_at' => $message->created_at?->toIso8601String(),
         ]);
         $latestRunId = $thread->messages()->whereNotNull('run_id')->latest('id')->value('run_id');
-        $run = $latestRunId ? AgentRun::find($latestRunId) : null;
+        $run = $latestRunId ? AgentRun::with('agent')->find($latestRunId) : null;
         $latestStep = $run?->steps()->latest('sequence')->first();
         // Shared hosting: keep draining the agent queue while the browser polls, so live
         // progress does not stall until the next cron tick or a full page refresh.
         if ($run && ! in_array($run->status, ['completed', 'failed', 'cancelled'], true)) {
             $queueKick->afterResponse(12);
+        }
+        $agentName = (string) ($run?->agent?->name ?: data_get($run?->context, 'agent_snapshot.name', 'Agent'));
+        $stage = '';
+        if ($run && ! in_array($run->status, ['completed', 'failed', 'cancelled'], true)) {
+            $tool = trim((string) ($latestStep?->tool ?? ''));
+            $stepType = trim((string) ($latestStep?->type ?? ''));
+            $stage = match (true) {
+                $run->status === 'awaiting_approval' => $agentName.' needs approval',
+                $tool !== '' => 'Using '.$tool,
+                $stepType === 'model' => $agentName.' is thinking…',
+                $run->status === 'waiting_child' => $agentName.' is waiting on a sub-agent…',
+                $run->status === 'queued' => $agentName.' is queued…',
+                default => $agentName.' is working…',
+            };
         }
         $thread = $thread->fresh()->load(['messages.attachments', 'defaultAgent']);
         return response()->json([
@@ -244,7 +258,8 @@ final class ChatController extends Controller
                 'output' => $run->output,
                 'stop_reason' => $run->stop_reason,
                 'execution' => data_get($run->context, 'execution'),
-                'stage' => $run->status === 'awaiting_approval' ? 'Waiting for approval' : ($latestStep?->tool ? 'Using '.$latestStep->tool : ($run->status === 'running' || $run->status === 'queued' ? 'Thinking' : ucfirst(str_replace('_',' ',$run->status)))),
+                'agent_name' => $agentName,
+                'stage' => $stage,
             ] : null,
         ]);
     }
@@ -340,7 +355,7 @@ final class ChatController extends Controller
             });
         }
         $threads = $query->paginate(30)->withQueryString();
-        $agents = Agent::where('status', 'active')->orderBy('name')->get(['id', 'name', 'description', 'avatar_path', 'model_connection_id', 'model', 'default_effort']);
+        $agents = Agent::where('status', 'active')->orderBy('name')->get(['id', 'name', 'slug', 'description', 'avatar_path', 'model_connection_id', 'model', 'default_effort']);
         $modelConnections = ModelConnection::where('enabled', true)->orderBy('name')->get(['id','name','provider','default_model']);
         $selectedAgentId = (int) old('agent_id', $thread?->default_agent_id ?: $thread?->agent_id ?: $agents->first()?->id);
         $selectedAgent = $agents->firstWhere('id', $selectedAgentId);

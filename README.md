@@ -44,9 +44,9 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
-## Enverif 1.3.7
+## Enverif 1.3.8
 
-The 1.3.7 release fixes chat live progress (queue re-kick while polling), stops the composer from collapsing after send, adds removable context tags, and repairs workflow node dragging / palette drop plus a cleaner single-trigger starter canvas.
+The 1.3.8 release tightens chat UX: live agent stage text (not static progress copy), reliable `@` mention search/select, and agent creative settings gated behind a toggle with OpenAI/Gemini image models from the registry.
 
 ## Enverif 1.3.6
 

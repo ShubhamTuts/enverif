@@ -2,7 +2,11 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.3.7
+**Target release:** 1.3.8
+
+### 1.3.8 live stage, @mentions, gated creative
+
+Version 1.3.8 shows live agent stage text in the thinking bar (no static progress copy), makes `@` mention search/select work with ranked matches and keyboard selection, and gates agent Creative & social fields behind a toggle with OpenAI/Gemini image models from ModelRegistry when those connections exist.
 
 ### 1.3.7 chat live progress + workflow studio reliability
 

@@ -2,6 +2,17 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.8 — 2026-08-06
+
+### Enhancements
+- Chat thinking bar shows **live agent stage** only (e.g. “Sara is working…”, “Using agents.list”) — removed the static “Live run progress…” developer copy; terminal runs no longer leave a Completed/Stop stub.
+- `@` mentions open the searchable picker, rank matches (`@sara`, `@gtm`), highlight the best hit, and select with Enter / Tab / click without hardcoding entity names.
+- Agent **Creative & social** fields stay hidden until the toggle is on; image models list from enabled OpenAI / Gemini connections via `ModelRegistry`, otherwise a configure-AI-Models notice.
+
+### Bug fixes
+- Mention menu no longer bleeds Run settings text through a translucent overlay.
+- Status polling clears the thinking bar when the run finishes and keeps draining the shared-host queue while busy.
+
 ## 1.3.7 — 2026-08-06
 
 ### Bug fixes

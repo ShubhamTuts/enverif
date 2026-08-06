@@ -137,6 +137,7 @@ final class AgentController extends Controller
             'creative_sample_posts' => 'nullable|string|max:5000',
             'creative_buffer_channel_id' => 'nullable|string|max:120',
             'creative_slack_channel' => 'nullable|string|max:120',
+            'creative_image_model_key' => 'nullable|string|max:180',
         ]);
 
         $selected = (string) ($data['model'] ?? '');
@@ -163,6 +164,7 @@ final class AgentController extends Controller
             $data['creative_sample_posts'],
             $data['creative_buffer_channel_id'],
             $data['creative_slack_channel'],
+            $data['creative_image_model_key'],
         );
         $data['settings'] = $this->settings($request, $existing);
 
@@ -172,9 +174,28 @@ final class AgentController extends Controller
     private function settings(Request $request, ?Agent $existing = null): array
     {
         $current = (array) ($existing?->settings ?? []);
-        $creativeEnabled = $request->boolean('creative_image_generation');
+        $creativeEnabled = $request->boolean('creative_enabled') || $request->boolean('creative_image_generation');
+        $imageKey = trim((string) $request->input('creative_image_model_key', ''));
+        $imageConnectionId = null;
+        $imageModel = '';
+        if ($imageKey !== '' && str_contains($imageKey, '|')) {
+            [$imageConnectionId, $imageModel] = array_pad(explode('|', $imageKey, 2), 2, '');
+            $imageConnectionId = (int) $imageConnectionId;
+            $imageModel = trim((string) $imageModel);
+            $allowed = collect($this->imageModelOptions())->contains(
+                fn (array $row): bool => (int) $row['connection_id'] === $imageConnectionId && $row['model'] === $imageModel
+            );
+            if (! $allowed) {
+                $imageConnectionId = null;
+                $imageModel = '';
+            }
+        }
         $creative = [
+            'enabled' => $creativeEnabled,
+            // BC: older builds treated image_generation as the creative/social toggle.
             'image_generation' => $creativeEnabled,
+            'image_connection_id' => $imageConnectionId,
+            'image_model' => $imageModel,
             'brand_name' => trim((string) $request->input('creative_brand_name', '')),
             'brand_voice' => trim((string) $request->input('creative_brand_voice', '')),
             'logo_url' => trim((string) $request->input('creative_logo_url', '')),
@@ -185,6 +206,25 @@ final class AgentController extends Controller
         $current['creative'] = $creative;
 
         return $current;
+    }
+
+    /** @return list<array{connection_id:int,connection:string,provider:string,model:string}> */
+    private function imageModelOptions(): array
+    {
+        $registry = app(\App\Core\Models\ModelRegistry::class);
+        $out = [];
+        foreach (ModelConnection::where('enabled', true)->whereIn('provider', ['openai', 'gemini'])->orderBy('name')->get(['id', 'name', 'provider']) as $connection) {
+            foreach ($registry->imageGenerationIds((string) $connection->provider) as $modelId) {
+                $out[] = [
+                    'connection_id' => (int) $connection->id,
+                    'connection' => (string) $connection->name,
+                    'provider' => (string) $connection->provider,
+                    'model' => $modelId,
+                ];
+            }
+        }
+
+        return $out;
     }
 
     private function policy(Request $request): array
@@ -203,6 +243,7 @@ final class AgentController extends Controller
             'agent' => $agent,
             'models' => ModelConnection::where('enabled', true)->get(),
             'modelCatalog' => $this->providers->catalog(),
+            'imageModelOptions' => $this->imageModelOptions(),
             'skills' => Skill::where(fn ($q) => $q->whereNull('workspace_id')->orWhere('workspace_id', session('workspace_id')))->where('status', 'active')->get(),
             'connectors' => ConnectorConnection::where('enabled', true)->get(),
         ];

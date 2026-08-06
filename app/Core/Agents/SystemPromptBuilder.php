@@ -77,7 +77,8 @@ final class SystemPromptBuilder
 
         $creative = (array) data_get($context, 'agent_snapshot.settings.creative', data_get($agent->settings, 'creative', []));
         $creativeText = '';
-        if (! empty($creative['image_generation'])) {
+        $creativeOn = ! empty($creative['enabled']) || ! empty($creative['image_generation']);
+        if ($creativeOn) {
             $creativeText = "\n\nCreative / social publishing mode is enabled for this agent:";
             $creativeText .= "\n- You may draft social posts and use Buffer/Slack tools when connected.";
             $creativeText .= "\n- Prefer Buffer create_draft before queue_post/schedule_post so humans can approve.";
@@ -99,6 +100,9 @@ final class SystemPromptBuilder
             }
             if (! empty($creative['default_slack_channel'])) {
                 $creativeText .= "\n- Default Slack channel: ".$creative['default_slack_channel'];
+            }
+            if (! empty($creative['image_model'])) {
+                $creativeText .= "\n- Preferred image generation model: ".Str::limit((string) $creative['image_model'], 120, '…');
             }
         }
 

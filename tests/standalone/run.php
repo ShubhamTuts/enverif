@@ -444,7 +444,7 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
 $tests['release source reports semantic version from VERSION file'] = function (): void {
     $version = trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION'));
     assert(preg_match('/^\d+\.\d+\.\d+$/', $version) === 1);
-    assert($version === '1.3.7');
+    assert($version === '1.3.8');
 };
 
 
@@ -704,9 +704,23 @@ $tests['tool schema normalizer encodes empty properties as JSON objects'] = func
     $chatJs = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/app.js');
     assert(str_contains($chatJs, 'data-remove-context'));
     assert(str_contains($chatJs, 'stillBusy'));
+    assert(str_contains($chatJs, 'selectMentionItem'));
+    assert(str_contains($chatJs, 'is-mention-active'));
     $chatController = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ChatController.php');
     assert(str_contains($chatController, 'WebQueueKick $queueKick'));
     assert(str_contains($chatController, "'busy'"));
+    assert(str_contains($chatController, "'stage'"));
+    assert(! str_contains((string) file_get_contents(dirname(__DIR__, 2).'/resources/views/chat/_transcript.blade.php'), 'Live run progress'));
+    $agentForm = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/agents/form.blade.php');
+    $agentController = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/AgentController.php');
+    assert(str_contains($agentForm, 'data-creative-toggle'));
+    assert(str_contains($agentForm, 'data-creative-fields'));
+    assert(str_contains($agentForm, 'creative_image_model_key'));
+    assert(str_contains($agentController, 'imageModelOptions'));
+    assert(str_contains($agentController, 'creative_enabled'));
+    $registry = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Models/ModelRegistry.php');
+    assert(str_contains($registry, 'imageGenerationIds'));
+    assert(str_contains($registry, 'gpt-image-1'));
     $workflowController = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/WorkflowController.php');
     assert(str_contains($workflowController, 'one Manual trigger'));
     assert(! str_contains($workflowController, "'output_1'"));

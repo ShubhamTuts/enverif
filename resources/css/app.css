@@ -175,7 +175,7 @@ button.send-button:disabled{opacity:.45;cursor:not-allowed;transform:none!import
 .workflow-expr-help code{cursor:default}
 @media (max-width:1100px){.workflow-builder{grid-template-columns:1fr;height:auto}.workflow-palette,.workflow-inspector{max-height:260px}.workflow-canvas-wrap{min-height:480px}.workflow-toolbar-hint{display:none}}
 
-/* Enverif 1.3.7 — chat composer stability + removable tags + workflow pointer fixes */
+/* Enverif 1.3.8 — live stage, @mention picker, creative gate */
 .chat-composer{min-height:112px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,box-shadow .15s,opacity .15s}
 .chat-composer.is-sending{opacity:1}
 .chat-composer textarea{min-height:44px!important;max-height:200px;resize:none;width:100%;border:0;background:transparent;outline:0;padding:6px 4px;line-height:1.45}
@@ -186,12 +186,14 @@ button.send-button:disabled{opacity:.45;cursor:not-allowed;transform:none!import
 .context-pill>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .context-pill-remove{flex:0 0 auto;width:16px;height:16px;border:0;border-radius:50%;background:transparent;color:inherit;display:grid;place-items:center;font-size:12px;line-height:1;padding:0;opacity:.7}
 .context-pill-remove:hover{opacity:1;background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.context-menu{z-index:120;background:var(--panel);isolation:isolate;backdrop-filter:none}
+.context-option.is-mention-active{background:color-mix(in srgb,var(--accent) 14%,transparent);outline:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
 .chat-composer-wrap{max-width:none}
 .chat-composer{width:min(860px,calc(100% - 24px))}
 .chat-thinking{width:min(860px,calc(100% - 24px));margin:8px auto;padding:10px 12px;border:1px solid var(--line);border-radius:16px;background:var(--panel);gap:8px}
 .chat-thinking-copy{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
 .chat-thinking-copy strong{font-size:12px;color:var(--text);font-weight:700}
-.chat-thinking-copy small{font-size:10px;color:var(--muted)}
+.chat-thinking-copy small{display:none}
 .chat-message{width:min(860px,calc(100% - 24px));margin-left:auto;margin-right:auto}
 .chat-scroll{padding-bottom:190px}
 .workflow-lines{pointer-events:none;z-index:1}

@@ -28,6 +28,8 @@ final class ModelRegistry
                 $this->model('o3-mini', tools: true, vision: false, reasoning: true, structured: true, context: 200_000),
                 $this->model('o1', tools: false, vision: false, reasoning: true, structured: false, context: 200_000),
                 $this->model('o1-mini', tools: false, vision: false, reasoning: true, structured: false, context: 128_000),
+                $this->model('gpt-image-1', tools: false, vision: false, reasoning: false, structured: false, context: 0, imageGeneration: true),
+                $this->model('dall-e-3', tools: false, vision: false, reasoning: false, structured: false, context: 0, imageGeneration: true),
             ],
             'anthropic' => [
                 $this->model('claude-opus-5', tools: true, vision: true, reasoning: true, structured: true, context: 1_000_000),
@@ -47,6 +49,8 @@ final class ModelRegistry
                 $this->model('gemini-2.5-pro', tools: true, vision: true, reasoning: true, structured: true, context: 1_000_000),
                 $this->model('gemini-2.5-flash', tools: true, vision: true, reasoning: true, structured: true, context: 1_000_000),
                 $this->model('gemini-2.5-flash-lite', tools: true, vision: true, reasoning: false, structured: true, context: 1_000_000),
+                $this->model('imagen-4.0-generate-001', tools: false, vision: false, reasoning: false, structured: false, context: 0, imageGeneration: true),
+                $this->model('imagen-3.0-generate-002', tools: false, vision: false, reasoning: false, structured: false, context: 0, imageGeneration: true),
             ],
             'deepseek' => [
                 $this->model('deepseek-v4-flash', tools: true, vision: false, reasoning: true, structured: true, context: 1_000_000),
@@ -60,12 +64,15 @@ final class ModelRegistry
     {
         return array_values(array_map(
             fn (array $row) => (string) $row['id'],
-            $this->all()[$provider] ?? [],
+            array_values(array_filter(
+                $this->all()[$provider] ?? [],
+                fn (array $row): bool => ! ($row['image_generation'] ?? false) || ($row['tools'] ?? false),
+            )),
         ));
     }
 
     /**
-     * @param  list<string>  $required  capability keys: tools, vision, reasoning, structured
+     * @param  list<string>  $required  capability keys: tools, vision, reasoning, structured, image_generation
      * @return list<string>
      */
     public function compatibleIds(string $provider, array $required = ['tools']): array
@@ -106,6 +113,7 @@ final class ModelRegistry
         bool $reasoning,
         bool $structured,
         int $context,
+        bool $imageGeneration = false,
     ): array {
         return [
             'id' => $id,
@@ -117,6 +125,13 @@ final class ModelRegistry
             'streaming' => true,
             'temperature' => ! $reasoning,
             'context_length' => $context,
+            'image_generation' => $imageGeneration,
         ];
+    }
+
+    /** Image-generation model IDs for a provider (empty when unsupported). */
+    public function imageGenerationIds(string $provider): array
+    {
+        return $this->compatibleIds($provider, ['image_generation']);
     }
 }

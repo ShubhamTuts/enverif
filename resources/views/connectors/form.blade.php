@@ -7,11 +7,11 @@
 @foreach(($driver->configurationSchema()['fields'] ?? []) as $key=>$meta)<div class="form-group"><label class="form-label">{{ $meta['label'] ?? ucfirst(str_replace('_',' ',$key)) }}</label>@if(($meta['type']??'text')==='select')<select class="select" name="configuration[{{ $key }}]">@foreach(($meta['options']??[]) as $option)<option value="{{ $option }}" @selected(old('configuration.'.$key,data_get($connection->configuration,$key,$meta['default']??''))===$option)>{{ ucfirst($option) }}</option>@endforeach</select>@else<input class="field" type="{{ $meta['type']??'text' }}" name="configuration[{{ $key }}]" value="{{ old('configuration.'.$key,data_get($connection->configuration,$key,$meta['default']??'')) }}" @if($meta['required']??false) required @endif>@endif<div class="help">{{ $meta['help']??'' }}</div></div>@endforeach
 <div class="form-group full"><div class="switch-row"><div><div class="form-label">{{ __('ui.enabled') }}</div></div><label class="switch"><input type="checkbox" name="enabled" value="1" @checked(old('enabled',$connection->exists?$connection->enabled:true))><span></span></label></div></div></div><div class="between connector-form-actions form-actions">
 <button class="btn btn-primary">{{ __('ui.save') }}</button>
-@if($connection->exists && in_array($connection->driver,['gmail','outlook'],true))
+@if($connection->exists && in_array($connection->driver,['gmail','outlook','google_sheets'],true))
 <div class="inline actions-inline">
-<a class="btn" href="{{ route('connectors.oauth.start',$connection) }}">Connect mailbox</a>
+<a class="btn" href="{{ route('connectors.oauth.start',$connection) }}">{{ $connection->driver === 'google_sheets' ? 'Connect Google Sheets' : 'Connect mailbox' }}</a>
 <button class="btn btn-danger" type="submit" form="oauth-disconnect-{{ $connection->id }}">Disconnect</button>
 </div>
 @endif
-</div></form>@if($connection->exists && in_array($connection->driver,['gmail','outlook'],true))<form id="oauth-disconnect-{{ $connection->id }}" method="post" action="{{ route('connectors.oauth.disconnect',$connection) }}">@csrf</form>@endif
+</div></form>@if($connection->exists && in_array($connection->driver,['gmail','outlook','google_sheets'],true))<form id="oauth-disconnect-{{ $connection->id }}" method="post" action="{{ route('connectors.oauth.disconnect',$connection) }}">@csrf</form>@endif
 @endsection

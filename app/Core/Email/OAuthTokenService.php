@@ -24,10 +24,12 @@ final class OAuthTokenService
             $refresh = (string) ($credentials['refresh_token'] ?? '');
             $clientSecret = (string) ($credentials['client_secret'] ?? '');
             $clientId = (string) data_get($connection->configuration, 'client_id', '');
-            if ($refresh === '' || $clientId === '' || $clientSecret === '') throw new \RuntimeException('Reconnect this mailbox to refresh OAuth access.');
+            if ($refresh === '' || $clientId === '' || $clientSecret === '') {
+                throw new \RuntimeException('Reconnect this connection to refresh OAuth access.');
+            }
 
             $response = match ($connection->driver) {
-                'gmail' => Http::asForm()->timeout(30)->post('https://oauth2.googleapis.com/token', [
+                'gmail', 'google_sheets' => Http::asForm()->timeout(30)->post('https://oauth2.googleapis.com/token', [
                     'client_id' => $clientId,
                     'client_secret' => $clientSecret,
                     'refresh_token' => $refresh,
@@ -40,7 +42,7 @@ final class OAuthTokenService
                     'grant_type' => 'refresh_token',
                     'scope' => 'offline_access User.Read Mail.ReadWrite Mail.Send',
                 ]),
-                default => throw new \RuntimeException('This connector does not use OAuth mailbox tokens.'),
+                default => throw new \RuntimeException('This connector does not use OAuth tokens.'),
             };
             $payload = $response->throw()->json();
             $credentials['access_token'] = (string) ($payload['access_token'] ?? '');

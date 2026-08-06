@@ -444,7 +444,7 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
 $tests['release source reports semantic version from VERSION file'] = function (): void {
     $version = trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION'));
     assert(preg_match('/^\d+\.\d+\.\d+$/', $version) === 1);
-    assert($version === '1.3.5');
+    assert($version === '1.3.6');
 };
 
 
@@ -684,9 +684,21 @@ $tests['tool schema normalizer encodes empty properties as JSON objects'] = func
     assert(str_contains($deepseek, 'ToolSchemaNormalizer'));
     assert(is_file(dirname(__DIR__, 2).'/plugins/builtin/slack/enverif.json'));
     assert(is_file(dirname(__DIR__, 2).'/plugins/builtin/buffer/enverif.json'));
+    assert(is_file(dirname(__DIR__, 2).'/plugins/builtin/google-sheets/enverif.json'));
+    assert(is_file(dirname(__DIR__, 2).'/app/Core/Connectors/Drivers/GoogleSheetsConnector.php'));
+    assert(is_file(dirname(__DIR__, 2).'/public/assets/integrations/google-sheets.svg'));
     assert(is_file(dirname(__DIR__, 2).'/app/Core/Models/ModelRegistry.php'));
     $chat = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/chat/index.blade.php');
     assert(str_contains($chat, 'composer-advanced'));
+    $workflowForm = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/workflows/form.blade.php');
+    $workflowJs = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/app.js');
+    assert(str_contains($workflowForm, 'data-palette-search'));
+    assert(str_contains($workflowForm, 'data-workflow-auto-layout'));
+    assert(str_contains($workflowForm, 'data-node-label-input'));
+    assert(str_contains($workflowJs, 'data-port-out'));
+    assert(str_contains($workflowJs, 'autoLayout'));
+    $oauth = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ConnectorOAuthController.php');
+    assert(str_contains($oauth, 'google_sheets'));
 };
 
 $tests['credential decrypt failures surface actionable recovery copy'] = function (): void {

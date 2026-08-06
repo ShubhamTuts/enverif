@@ -2,6 +2,17 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.6 — 2026-08-06
+
+### Features
+- n8n-style workflow studio: grouped palette with search, port-based linking, edge select/delete, canvas pan, snap-to-grid, auto-layout, duplicate node, expression chips, empty-canvas guidance.
+- First-party **Google Sheets** plugin (OAuth): list recent sheets, get metadata/values, append/update/clear, create spreadsheet — with Google brand mark adapted from the public Sheets product icon.
+- Connector catalog now exposes action parameter schemas to the workflow inspector for easier plugin integration.
+
+### Bug fixes
+- Workflow inspector label field no longer collides with palette `data-node-label` attributes.
+- Google OAuth refresh shared cleanly across Gmail and Google Sheets connections.
+
 ## 1.3.5 — 2026-08-06
 
 ### Bug fixes

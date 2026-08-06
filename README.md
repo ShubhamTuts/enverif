@@ -44,6 +44,10 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
+## Enverif 1.3.6
+
+The 1.3.6 release upgrades the visual workflow studio toward an n8n-style builder (grouped palette, port links, pan, auto-layout, edge editing) and adds a first-party **Google Sheets** OAuth connector with real Google Sheets branding. Plugin action schemas are exposed to the workflow inspector so connector nodes are easier to wire end-to-end.
+
 ## Enverif 1.3.5
 
 The 1.3.5 release hardens the AI tool/provider boundary so DeepSeek and OpenAI-compatible providers accept Enverif tool schemas (empty JSON Schema `properties` encode as `{}`, not `[]`). A capability-aware Model Registry backs suggested catalogs. First-party Slack and Buffer plugins land for team messaging and social scheduling. Chat run settings collapse into a compact “Run settings” control, and agents gain creative/social publishing configuration for specialist roles.

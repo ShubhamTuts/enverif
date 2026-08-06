@@ -329,7 +329,7 @@ if (!str_contains($workflowForm, '$workflowResourcesJson') || str_contains($work
 }
 
 $checks++;
-foreach (['gmail','outlook','smtp','apollo','apify','google-search-console','google-analytics','google-maps','calendly','automation-webhook','slack','buffer','openai','anthropic','gemini','deepseek'] as $slug) {
+foreach (['gmail','outlook','smtp','apollo','apify','google-search-console','google-analytics','google-maps','google-sheets','calendly','automation-webhook','slack','buffer','openai','anthropic','gemini','deepseek'] as $slug) {
     if (!is_file($root.'/public/assets/integrations/'.$slug.'.svg')) $fail("Missing bundled integration icon: {$slug}.svg");
 }
 

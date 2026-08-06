@@ -18,6 +18,8 @@ final class PluginPresentation
         'automation-webhook' => 'automation-webhook.svg',
         'slack' => 'slack.svg',
         'buffer' => 'buffer.svg',
+        'google-sheets' => 'google-sheets.svg',
+        'google_sheets' => 'google-sheets.svg',
     ];
 
     public static function iconFor(string $driver): string

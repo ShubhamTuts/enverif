@@ -33,7 +33,12 @@ final class ConnectorManager
                 'version'=>$meta['version']??null,
                 'license'=>$meta['license']??null,
                 'schema'=>$driver->configurationSchema(),
-                'actions'=>array_map(fn($a)=>['name'=>$a->name,'description'=>$a->description,'risk'=>$a->risk->value],$driver->actions()),
+                'actions'=>array_map(fn($a)=>[
+                    'name'=>$a->name,
+                    'description'=>$a->description,
+                    'risk'=>$a->risk->value,
+                    'parameters'=>$a->parameters,
+                ],$driver->actions()),
             ];
         }
         return $out;

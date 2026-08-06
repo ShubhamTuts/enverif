@@ -2,7 +2,11 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.3.5
+**Target release:** 1.3.6
+
+### 1.3.6 workflow studio + Google Sheets addendum
+
+Version 1.3.6 upgrades the visual workflow builder toward an n8n-style studio (grouped searchable palette, port linking, pan, auto-layout, edge editing) and ships a first-party Google Sheets OAuth connector with brand-accurate iconography for spreadsheet read/write automation.
 
 ### 1.3.5 production OS hardening addendum
 

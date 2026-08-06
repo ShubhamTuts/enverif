@@ -17,19 +17,31 @@
         $workflow->definition ?: [],
         JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
     );
-    $palette = [
-        'manual' => __('ui.manual_trigger'),
-        'schedule' => __('ui.schedule_trigger'),
-        'webhook' => __('ui.webhook_trigger'),
-        'agent' => __('ui.ai_agent'),
-        'connector' => __('ui.plugin_action'),
-        'skill' => __('ui.skill_context'),
-        'condition' => __('ui.condition'),
-        'delay' => __('ui.delay'),
-        'lead' => __('ui.lead_action'),
-        'campaign' => __('ui.campaign_action'),
-        'approval' => __('ui.human_approval'),
-        'output' => __('ui.output'),
+    $exprInput = '{{input}}';
+    $exprPrevious = '{{previous}}';
+    $exprNodes = '{{nodes.node_id}}';
+    $exprEmail = '{{input.email}}';
+    $paletteGroups = [
+        'Triggers' => [
+            'manual' => __('ui.manual_trigger'),
+            'schedule' => __('ui.schedule_trigger'),
+            'webhook' => __('ui.webhook_trigger'),
+        ],
+        'AI & plugins' => [
+            'agent' => __('ui.ai_agent'),
+            'connector' => __('ui.plugin_action'),
+            'skill' => __('ui.skill_context'),
+            'approval' => __('ui.human_approval'),
+        ],
+        'Logic' => [
+            'condition' => __('ui.condition'),
+            'delay' => __('ui.delay'),
+            'output' => __('ui.output'),
+        ],
+        'Revenue data' => [
+            'lead' => __('ui.lead_action'),
+            'campaign' => __('ui.campaign_action'),
+        ],
     ];
     $paletteIcons = [
         'manual'   => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v4l2 2"/><circle cx="8" cy="8" r="6"/></svg>',
@@ -99,25 +111,38 @@
         <aside class="workflow-palette">
             <strong>{{ __('ui.add_node') }}</strong>
             <p>{{ __('ui.add_node_help') }}</p>
-            @foreach($palette as $type => $label)
-                <button type="button" class="workflow-palette-item" draggable="true" data-node-type="{{ $type }}">
-                    <span>{!! $paletteIcons[$type] ?? strtoupper(substr($label, 0, 1)) !!}</span>
-                    {{ $label }}
-                </button>
+            <input class="field workflow-palette-search" type="search" data-palette-search placeholder="Search nodes…" autocomplete="off">
+            @foreach($paletteGroups as $group => $items)
+                <div class="workflow-palette-group" data-palette-group>
+                    <div class="workflow-palette-group-label">{{ $group }}</div>
+                    @foreach($items as $type => $label)
+                        <button type="button" class="workflow-palette-item" draggable="true" data-node-type="{{ $type }}" data-node-label="{{ $label }}">
+                            <span>{!! $paletteIcons[$type] ?? strtoupper(substr($label, 0, 1)) !!}</span>
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
             @endforeach
         </aside>
 
         <section class="workflow-canvas-wrap">
             <div class="workflow-toolbar">
-                <button type="button" class="btn btn-sm" data-workflow-zoom="out">−</button>
+                <button type="button" class="btn btn-sm" data-workflow-zoom="out" title="Zoom out">−</button>
                 <span data-workflow-zoom-label>100%</span>
-                <button type="button" class="btn btn-sm" data-workflow-zoom="in">+</button>
+                <button type="button" class="btn btn-sm" data-workflow-zoom="in" title="Zoom in">+</button>
                 <button type="button" class="btn btn-sm" data-workflow-fit>{{ __('ui.fit') }}</button>
-                <span class="muted small">{{ __('ui.connect_help') }}</span>
+                <button type="button" class="btn btn-sm" data-workflow-auto-layout title="Arrange nodes">Auto-layout</button>
+                <span class="workflow-toolbar-divider"></span>
+                <span class="muted small" data-workflow-stats>0 nodes · 0 links</span>
+                <span class="muted small workflow-toolbar-hint">{{ __('ui.connect_help') }} · Drag from ports · Del deletes · Esc cancels</span>
             </div>
             <div class="workflow-canvas" data-workflow-canvas>
                 <svg class="workflow-lines" data-workflow-lines></svg>
                 <div class="workflow-stage" data-workflow-stage></div>
+                <div class="workflow-canvas-empty" data-canvas-empty hidden>
+                    <strong>Build your revenue flow</strong>
+                    <p>Drag nodes from the left palette, connect output → input ports, then configure each step.</p>
+                </div>
             </div>
         </section>
 
@@ -125,20 +150,38 @@
             <div data-workflow-empty>
                 <strong>{{ __('ui.node_settings') }}</strong>
                 <p class="muted">{{ __('ui.node_settings_help') }}</p>
+                <div class="workflow-expr-help">
+                    <span class="eyebrow">Templates</span>
+                    <code>{{ $exprInput }}</code>
+                    <code>{{ $exprPrevious }}</code>
+                    <code>{{ $exprNodes }}</code>
+                </div>
             </div>
             <div data-workflow-inspector hidden>
                 <div class="between">
                     <strong data-node-heading>{{ __('ui.node') }}</strong>
-                    <button type="button" class="icon-btn" data-node-delete aria-label="{{ __('ui.delete_node') }}">×</button>
+                    <div class="inline">
+                        <button type="button" class="btn btn-sm" data-node-duplicate title="Duplicate">⧉</button>
+                        <button type="button" class="icon-btn" data-node-delete aria-label="{{ __('ui.delete_node') }}">×</button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">{{ __('ui.label') }}</label>
-                    <input class="field" data-node-label>
+                    <input class="field" data-node-label-input>
                 </div>
                 <div data-node-fields></div>
                 <div class="divider"></div>
-                <button type="button" class="btn" data-node-connect>{{ __('ui.connect_to') }}</button>
+                <div class="workflow-connect-row">
+                    <button type="button" class="btn" data-node-connect>{{ __('ui.connect_to') }}</button>
+                    <button type="button" class="btn btn-sm" data-edge-clear hidden>Clear links out</button>
+                </div>
                 <p class="help" data-connect-help></p>
+                <div class="workflow-expr-help">
+                    <span class="eyebrow">Insert into fields</span>
+                    <button type="button" class="chip" data-expr-chip="{{ $exprInput }}">input</button>
+                    <button type="button" class="chip" data-expr-chip="{{ $exprPrevious }}">previous</button>
+                    <button type="button" class="chip" data-expr-chip="{{ $exprEmail }}">email</button>
+                </div>
             </div>
         </aside>
     </div>

@@ -1,4 +1,4 @@
-const root=document.documentElement;
+﻿const root=document.documentElement;
 const preferred=localStorage.getItem('enverif-theme')||root.dataset.userTheme||'system';
 function resolvedTheme(theme){return theme==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme}
 function setTheme(theme){localStorage.setItem('enverif-theme',theme);root.dataset.theme=resolvedTheme(theme);root.dataset.userTheme=theme;document.querySelectorAll('[data-theme-label]').forEach(x=>x.textContent=theme)}
@@ -34,7 +34,7 @@ window.Enverif={setTheme};
         const provider=providerSelect.value;
         const previous=preserve?modelSelect.value:'';
         const models=Array.isArray(catalog?.[provider])?catalog[provider]:[];
-        modelSelect.innerHTML='<option value="">Use provider default</option>'+models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model ID…</option>';
+        modelSelect.innerHTML='<option value="">Use provider default</option>'+models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model IDâ€¦</option>';
         modelSelect.disabled=!provider;
         if(provider&&[...modelSelect.options].some(option=>option.value===previous))modelSelect.value=previous;
         syncCustomModel();
@@ -61,7 +61,7 @@ document.querySelectorAll('[data-model-catalog]').forEach((form)=>{
     if(!provider||!model)return;
     const escapeOption=(value)=>String(value??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     function syncCustom(){const enabled=model.value==='__custom__';if(customWrap)customWrap.hidden=!enabled;if(custom){custom.required=enabled;custom.disabled=!enabled}}
-    function populate(preserve=true){const previous=preserve?model.value:'';const models=Array.isArray(catalog?.[provider.value])?catalog[provider.value]:[];model.innerHTML=models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model ID…</option>';if(preserve&&[...model.options].some(option=>option.value===previous))model.value=previous;syncCustom()}
+    function populate(preserve=true){const previous=preserve?model.value:'';const models=Array.isArray(catalog?.[provider.value])?catalog[provider.value]:[];model.innerHTML=models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model IDâ€¦</option>';if(preserve&&[...model.options].some(option=>option.value===previous))model.value=previous;syncCustom()}
     provider.addEventListener('change',()=>populate(false));
     model.addEventListener('change',syncCustom);
     populate(true);
@@ -78,13 +78,13 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     if(!connection||!model)return;
     const escapeOption=(value)=>String(value??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     function syncCustom(){const enabled=model.value==='__custom__';if(customWrap)customWrap.hidden=!enabled;if(custom){custom.required=enabled;custom.disabled=!enabled}}
-    function populate(preserve=true){const option=connection.options[connection.selectedIndex];const provider=option?.dataset.provider||'';const previous=preserve?model.value:'';const models=Array.isArray(catalog?.[provider])?catalog[provider]:[];model.innerHTML='<option value="">Use connection default</option>'+models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model ID…</option>';model.disabled=!connection.value;if(preserve&&[...model.options].some(item=>item.value===previous))model.value=previous;syncCustom()}
+    function populate(preserve=true){const option=connection.options[connection.selectedIndex];const provider=option?.dataset.provider||'';const previous=preserve?model.value:'';const models=Array.isArray(catalog?.[provider])?catalog[provider]:[];model.innerHTML='<option value="">Use connection default</option>'+models.map(id=>`<option value="${escapeOption(id)}">${escapeOption(id)}</option>`).join('')+'<option value="__custom__">Custom model IDâ€¦</option>';model.disabled=!connection.value;if(preserve&&[...model.options].some(item=>item.value===previous))model.value=previous;syncCustom()}
     connection.addEventListener('change',()=>populate(false));
     model.addEventListener('change',syncCustom);
     populate(true);
 });
 
-// Durable visual workflow studio.
+// Durable visual workflow studio (n8n-style canvas).
 (() => {
     const root = document.querySelector('[data-workflow-builder]');
     if (!root) return;
@@ -94,12 +94,16 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     const canvas = root.querySelector('[data-workflow-canvas]');
     const svg = root.querySelector('[data-workflow-lines]');
     const empty = root.querySelector('[data-workflow-empty]');
+    const canvasEmpty = root.querySelector('[data-canvas-empty]');
     const inspector = root.querySelector('[data-workflow-inspector]');
     const fieldBox = root.querySelector('[data-node-fields]');
-    const labelField = root.querySelector('[data-node-label]');
+    const labelField = root.querySelector('[data-node-label-input]');
     const heading = root.querySelector('[data-node-heading]');
     const connectHelp = root.querySelector('[data-connect-help]');
     const connectButton = root.querySelector('[data-node-connect]');
+    const clearEdgesButton = root.querySelector('[data-edge-clear]');
+    const statsLabel = root.querySelector('[data-workflow-stats]');
+    const GRID = 22;
 
     let resources = {};
     try {
@@ -118,9 +122,11 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     definition.edges = Array.isArray(definition.edges) ? definition.edges : [];
 
     let selectedId = null;
+    let selectedEdgeIndex = null;
     let connecting = null;
     let scale = 1;
     let drag = null;
+    let pan = null;
 
     const labels = {
         manual: 'Manual trigger',
@@ -136,7 +142,6 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         approval: 'Human approval',
         output: 'Output',
     };
-    // SVG icons per node type (16×16 viewBox, stroke-based)
     const nodeIcons = {
         manual: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v4l2 2"/><circle cx="8" cy="8" r="6"/></svg>',
         schedule: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>',
@@ -157,6 +162,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     }[character]));
 
     const makeId = (type) => `${type}_${Math.random().toString(36).slice(2, 9)}`;
+    const snap = (value) => Math.round(value / GRID) * GRID;
 
     function defaultConfig(type) {
         const agentId = resources.agents?.[0]?.id || '';
@@ -185,24 +191,44 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         return definition.nodes.find((node) => node.id === id) || null;
     }
 
+    function updateStats() {
+        if (statsLabel) {
+            statsLabel.textContent = `${definition.nodes.length} nodes Â· ${definition.edges.length} links`;
+        }
+        if (canvasEmpty) {
+            canvasEmpty.hidden = definition.nodes.length > 0;
+        }
+    }
+
     function sync() {
         if (hidden) hidden.value = JSON.stringify(definition);
         renderEdges();
+        updateStats();
     }
 
-    function addNode(type, x = 160 + canvas.scrollLeft / scale, y = 160 + canvas.scrollTop / scale) {
+    function addNode(type, x = 160 + canvas.scrollLeft / scale, y = 160 + canvas.scrollTop / scale, autoLink = true) {
         const node = {
             id: makeId(type),
             type,
             label: labels[type] || type,
             config: defaultConfig(type),
             position: {
-                x: Math.max(20, Math.round(x)),
-                y: Math.max(20, Math.round(y)),
+                x: Math.max(GRID, snap(x)),
+                y: Math.max(GRID, snap(y)),
             },
         };
         definition.nodes.push(node);
+        if (autoLink && selectedId && selectedId !== node.id) {
+            const source = nodeById(selectedId);
+            if (source && source.type !== 'condition' && !['manual', 'schedule', 'webhook'].includes(node.type)) {
+                const port = 'default';
+                if (!definition.edges.some((edge) => edge.from === selectedId && (edge.port || 'default') === port)) {
+                    definition.edges.push({from: selectedId, to: node.id, port});
+                }
+            }
+        }
         selectedId = node.id;
+        selectedEdgeIndex = null;
         renderNodes();
         inspectNode();
         sync();
@@ -211,8 +237,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     function renderNodes() {
         stage.innerHTML = '';
         for (const node of definition.nodes) {
-            const element = document.createElement('button');
-            element.type = 'button';
+            const element = document.createElement('div');
             element.className = [
                 'workflow-node',
                 node.id === selectedId ? 'selected' : '',
@@ -221,7 +246,11 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             element.dataset.nodeId = node.id;
             element.style.left = `${node.position?.x || 80}px`;
             element.style.top = `${node.position?.y || 80}px`;
+            const ports = node.type === 'condition'
+                ? `<button type="button" class="workflow-node-port out true" data-port-out="true" title="True"></button><button type="button" class="workflow-node-port out false" data-port-out="false" title="False"></button>`
+                : `<button type="button" class="workflow-node-port out" data-port-out="default" title="Connect"></button>`;
             element.innerHTML = `
+                <button type="button" class="workflow-node-port in" data-port-in title="Input"></button>
                 <div class="workflow-node-head">
                     <span class="workflow-node-icon">${nodeIcons[node.type] || escapeHtml((labels[node.type] || node.type).slice(0, 1).toUpperCase())}</span>
                     <div>
@@ -229,10 +258,11 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
                         <div class="workflow-node-type">${escapeHtml(labels[node.type] || node.type)}</div>
                     </div>
                 </div>
-                <span class="workflow-node-port"></span>`;
+                ${ports}`;
             stage.appendChild(element);
         }
         renderEdges();
+        updateStats();
     }
 
     function renderEdges() {
@@ -241,23 +271,27 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         stage.style.transform = `scale(${scale})`;
 
         let output = '<defs><marker id="wf-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker></defs>';
-        for (const edge of definition.edges) {
+        definition.edges.forEach((edge, index) => {
             const source = nodeById(edge.from);
             const target = nodeById(edge.to);
-            if (!source || !target) continue;
+            if (!source || !target) return;
 
+            const port = edge.port || 'default';
             const x1 = (source.position?.x || 0) + 194;
-            const y1 = (source.position?.y || 0) + 38;
+            let y1 = (source.position?.y || 0) + 38;
+            if (source.type === 'condition') {
+                y1 = (source.position?.y || 0) + (port === 'false' ? 56 : 24);
+            }
             const x2 = target.position?.x || 0;
             const y2 = (target.position?.y || 0) + 38;
             const curve = Math.max(70, Math.abs(x2 - x1) * 0.45);
             const path = `M ${x1} ${y1} C ${x1 + curve} ${y1}, ${x2 - curve} ${y2}, ${x2} ${y2}`;
-            const port = edge.port || 'default';
-            output += `<path class="workflow-edge ${escapeHtml(port)}" d="${path}" marker-end="url(#wf-arrow)"/>`;
+            const selected = selectedEdgeIndex === index ? ' selected' : '';
+            output += `<path class="workflow-edge ${escapeHtml(port)}${selected}" data-edge-index="${index}" d="${path}" marker-end="url(#wf-arrow)"/>`;
             if (port !== 'default') {
                 output += `<text class="workflow-edge-label" x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 7}">${escapeHtml(port)}</text>`;
             }
-        }
+        });
         svg.innerHTML = output;
     }
 
@@ -315,8 +349,13 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         fieldBox.innerHTML = html;
         if (node.type === 'connector') refreshActions(node);
         connectButton.hidden = node.type === 'condition';
-        connectButton.textContent = 'Connect to…';
-        connectHelp.textContent = connecting ? `Choose a destination for the ${connecting.port} branch.` : 'Connections are saved with the workflow.';
+        connectButton.textContent = connecting ? 'Connectingâ€¦' : 'Connect toâ€¦';
+        if (clearEdgesButton) {
+            clearEdgesButton.hidden = !definition.edges.some((edge) => edge.from === node.id);
+        }
+        connectHelp.textContent = connecting
+            ? `Click an input port (or node) for the ${connecting.port} branch. Esc cancels.`
+            : 'Drag from the green output port, or use Connect. Click a link to select, Del removes it.';
         bindFields(node);
     }
 
@@ -326,7 +365,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         const select = fieldBox.querySelector('[data-action-select]');
         if (!select) return;
 
-        select.innerHTML = '<option value="">Choose action</option>' + actions.map((action) => `<option value="${escapeHtml(action.name)}" ${node.config.action === action.name ? 'selected' : ''}>${escapeHtml(action.name)} · ${escapeHtml(action.risk)}</option>`).join('');
+        select.innerHTML = '<option value="">Choose action</option>' + actions.map((action) => `<option value="${escapeHtml(action.name)}" ${node.config.action === action.name ? 'selected' : ''}>${escapeHtml(action.name)} Â· ${escapeHtml(action.risk)}</option>`).join('');
     }
 
     function bindFields(node) {
@@ -381,8 +420,75 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     function beginConnection(port = 'default') {
         if (!selectedId) return;
         connecting = {from: selectedId, port};
+        selectedEdgeIndex = null;
         renderNodes();
         inspectNode();
+    }
+
+    function finishConnection(toId) {
+        if (!connecting || toId === connecting.from) return;
+        definition.edges = definition.edges.filter((edge) => !(edge.from === connecting.from && (edge.port || 'default') === connecting.port));
+        definition.edges.push({from: connecting.from, to: toId, port: connecting.port});
+        connecting = null;
+        selectedId = toId;
+        selectedEdgeIndex = null;
+        renderNodes();
+        inspectNode();
+        sync();
+    }
+
+    function deleteSelected() {
+        if (selectedEdgeIndex !== null) {
+            definition.edges.splice(selectedEdgeIndex, 1);
+            selectedEdgeIndex = null;
+            renderNodes();
+            inspectNode();
+            sync();
+            return;
+        }
+        if (!selectedId) return;
+        definition.nodes = definition.nodes.filter((node) => node.id !== selectedId);
+        definition.edges = definition.edges.filter((edge) => edge.from !== selectedId && edge.to !== selectedId);
+        selectedId = null;
+        connecting = null;
+        renderNodes();
+        inspectNode();
+        sync();
+    }
+
+    function autoLayout() {
+        const triggers = definition.nodes.filter((node) => ['manual', 'schedule', 'webhook'].includes(node.type));
+        const rest = definition.nodes.filter((node) => !['manual', 'schedule', 'webhook'].includes(node.type));
+        const columns = [];
+        const placed = new Set();
+        let frontier = triggers.map((node) => node.id);
+        if (frontier.length === 0 && definition.nodes[0]) frontier = [definition.nodes[0].id];
+        while (frontier.length) {
+            columns.push([...frontier]);
+            frontier.forEach((id) => placed.add(id));
+            const next = [];
+            for (const from of columns[columns.length - 1]) {
+                for (const edge of definition.edges) {
+                    if (edge.from === from && !placed.has(edge.to) && !next.includes(edge.to)) next.push(edge.to);
+                }
+            }
+            frontier = next;
+        }
+        for (const node of rest) {
+            if (!placed.has(node.id)) {
+                columns.push([node.id]);
+                placed.add(node.id);
+            }
+        }
+        columns.forEach((column, col) => {
+            column.forEach((id, row) => {
+                const node = nodeById(id);
+                if (!node) return;
+                node.position = {x: 80 + col * 240, y: 80 + row * 120};
+            });
+        });
+        renderNodes();
+        sync();
     }
 
     labelField.addEventListener('input', () => {
@@ -393,12 +499,23 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         sync();
     });
 
-    root.querySelector('[data-node-delete]').addEventListener('click', () => {
-        if (!selectedId) return;
-        definition.nodes = definition.nodes.filter((node) => node.id !== selectedId);
-        definition.edges = definition.edges.filter((edge) => edge.from !== selectedId && edge.to !== selectedId);
-        selectedId = null;
-        connecting = null;
+    root.querySelector('[data-node-delete]')?.addEventListener('click', deleteSelected);
+
+    root.querySelector('[data-node-duplicate]')?.addEventListener('click', () => {
+        const node = selectedNode();
+        if (!node) return;
+        const copy = {
+            id: makeId(node.type),
+            type: node.type,
+            label: `${node.label || labels[node.type]} copy`,
+            config: JSON.parse(JSON.stringify(node.config || {})),
+            position: {
+                x: snap((node.position?.x || 80) + 40),
+                y: snap((node.position?.y || 80) + 40),
+            },
+        };
+        definition.nodes.push(copy);
+        selectedId = copy.id;
         renderNodes();
         inspectNode();
         sync();
@@ -406,23 +523,56 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 
     connectButton.addEventListener('click', () => beginConnection('default'));
 
+    clearEdgesButton?.addEventListener('click', () => {
+        if (!selectedId) return;
+        definition.edges = definition.edges.filter((edge) => edge.from !== selectedId);
+        renderNodes();
+        inspectNode();
+        sync();
+    });
+
+    root.querySelectorAll('[data-expr-chip]').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            const active = fieldBox.querySelector('textarea, input.field:not([type=number])');
+            if (!active) return;
+            const insert = chip.dataset.exprChip || '';
+            const start = active.selectionStart ?? active.value.length;
+            const end = active.selectionEnd ?? start;
+            active.value = `${active.value.slice(0, start)}${insert}${active.value.slice(end)}`;
+            active.dispatchEvent(new Event('change', {bubbles: true}));
+            active.focus();
+        });
+    });
+
     stage.addEventListener('pointerdown', (event) => {
+        const portOut = event.target.closest('[data-port-out]');
+        const portIn = event.target.closest('[data-port-in]');
         const element = event.target.closest('.workflow-node');
         if (!element) return;
         const id = element.dataset.nodeId;
 
-        if (connecting && id !== connecting.from) {
-            definition.edges = definition.edges.filter((edge) => !(edge.from === connecting.from && (edge.port || 'default') === connecting.port));
-            definition.edges.push({from: connecting.from, to: id, port: connecting.port});
-            connecting = null;
+        if (portOut) {
             selectedId = id;
-            renderNodes();
-            inspectNode();
-            sync();
+            beginConnection(portOut.dataset.portOut || 'default');
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        if (portIn && connecting) {
+            finishConnection(id);
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        if (connecting && id !== connecting.from) {
+            finishConnection(id);
             return;
         }
 
         selectedId = id;
+        selectedEdgeIndex = null;
         renderNodes();
         inspectNode();
         const node = nodeById(id);
@@ -437,10 +587,41 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         event.preventDefault();
     });
 
+    svg.addEventListener('pointerdown', (event) => {
+        const path = event.target.closest('[data-edge-index]');
+        if (!path) return;
+        selectedEdgeIndex = Number(path.dataset.edgeIndex);
+        selectedId = null;
+        connecting = null;
+        renderNodes();
+        empty.hidden = false;
+        inspector.hidden = true;
+        event.stopPropagation();
+    });
+
+    canvas.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('.workflow-node') || event.target.closest('[data-edge-index]')) return;
+        if (event.button === 1 || event.shiftKey || event.target === canvas || event.target === canvasEmpty) {
+            pan = {startX: event.clientX, startY: event.clientY, left: canvas.scrollLeft, top: canvas.scrollTop};
+            canvas.setPointerCapture?.(event.pointerId);
+            if (event.button === 1) event.preventDefault();
+        }
+        if (!event.target.closest('.workflow-node') && connecting) {
+            connecting = null;
+            renderNodes();
+            inspectNode();
+        }
+    });
+
     window.addEventListener('pointermove', (event) => {
+        if (pan) {
+            canvas.scrollLeft = pan.left - (event.clientX - pan.startX);
+            canvas.scrollTop = pan.top - (event.clientY - pan.startY);
+            return;
+        }
         if (!drag) return;
-        drag.node.position.x = Math.max(10, Math.round(drag.x + (event.clientX - drag.startX) / scale));
-        drag.node.position.y = Math.max(10, Math.round(drag.y + (event.clientY - drag.startY) / scale));
+        drag.node.position.x = Math.max(GRID, snap(drag.x + (event.clientX - drag.startX) / scale));
+        drag.node.position.y = Math.max(GRID, snap(drag.y + (event.clientY - drag.startY) / scale));
         const element = stage.querySelector(`[data-node-id="${CSS.escape(drag.node.id)}"]`);
         if (element) {
             element.style.left = `${drag.node.position.x}px`;
@@ -450,14 +631,47 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     });
 
     window.addEventListener('pointerup', () => {
+        if (pan) {
+            pan = null;
+            return;
+        }
         if (!drag) return;
         drag = null;
         sync();
     });
 
+    window.addEventListener('keydown', (event) => {
+        if (!root.isConnected) return;
+        const tag = (event.target?.tagName || '').toLowerCase();
+        if (['input', 'textarea', 'select'].includes(tag)) return;
+        if (event.key === 'Escape' && connecting) {
+            connecting = null;
+            renderNodes();
+            inspectNode();
+        }
+        if ((event.key === 'Delete' || event.key === 'Backspace') && (selectedId || selectedEdgeIndex !== null)) {
+            event.preventDefault();
+            deleteSelected();
+        }
+    });
+
     root.querySelectorAll('[data-node-type]').forEach((button) => {
         button.addEventListener('click', () => addNode(button.dataset.nodeType));
         button.addEventListener('dragstart', (event) => event.dataTransfer?.setData('text/enverif-node', button.dataset.nodeType));
+    });
+
+    root.querySelector('[data-palette-search]')?.addEventListener('input', (event) => {
+        const query = String(event.target.value || '').toLowerCase().trim();
+        root.querySelectorAll('[data-palette-group]').forEach((group) => {
+            let visible = 0;
+            group.querySelectorAll('[data-node-type]').forEach((button) => {
+                const label = `${button.dataset.nodeType} ${button.dataset.nodeLabel || button.textContent}`.toLowerCase();
+                const match = !query || label.includes(query);
+                button.hidden = !match;
+                if (match) visible += 1;
+            });
+            group.hidden = visible === 0;
+        });
     });
 
     canvas.addEventListener('dragover', (event) => event.preventDefault());
@@ -466,7 +680,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         const type = event.dataTransfer?.getData('text/enverif-node');
         if (!type) return;
         const rect = canvas.getBoundingClientRect();
-        addNode(type, (event.clientX - rect.left + canvas.scrollLeft) / scale, (event.clientY - rect.top + canvas.scrollTop) / scale);
+        addNode(type, (event.clientX - rect.left + canvas.scrollLeft) / scale, (event.clientY - rect.top + canvas.scrollTop) / scale, false);
     });
 
     root.querySelectorAll('[data-workflow-zoom]').forEach((button) => {
@@ -484,12 +698,13 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         renderEdges();
     });
 
+    root.querySelector('[data-workflow-auto-layout]')?.addEventListener('click', autoLayout);
+
     document.querySelector('[data-workflow-form]')?.addEventListener('submit', sync);
     renderNodes();
     inspectNode();
     sync();
 })();
-
 // Workflow run polling keeps durable execution visible without a SPA.
 (()=>{const root=document.querySelector('[data-workflow-run]');if(!root)return;const url=root.dataset.statusUrl,current=root.dataset.currentStatus,count=Number(root.dataset.stepCount||0);if(['completed','failed','cancelled'].includes(current))return;const poll=async()=>{try{const r=await fetch(url,{headers:{Accept:'application/json'}});if(!r.ok)return;const data=await r.json();if(data.status!==current||(data.steps?.length||0)!==count||['completed','failed','cancelled'].includes(data.status))location.reload()}catch{}setTimeout(poll,2500)};setTimeout(poll,1800)})();
 // ChatGPT-style revenue workspace shell.
@@ -547,7 +762,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     };
     const updateDocumentTitle = (title) => {
         if (!title) return;
-        document.title = `${title} · Enverif`;
+        document.title = `${title} Â· Enverif`;
         const crumb = document.querySelector('[data-page-crumb]');
         if (crumb) crumb.textContent = title;
     };
@@ -592,7 +807,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         const models = modelCatalog[provider] || [];
         modelSelect.innerHTML = '<option value="">Connection default</option>'
             + models.map((id) => `<option value="${escape(id)}">${escape(id)}</option>`).join('')
-            + '<option value="__custom__">Custom model…</option>';
+            + '<option value="__custom__">Custom modelâ€¦</option>';
         if ([...modelSelect.options].some((option) => option.value === previous)) {
             modelSelect.value = previous;
         } else if (previous) {

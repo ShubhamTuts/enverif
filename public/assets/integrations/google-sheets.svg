@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Google Sheets">
+  <!-- Brand mark adapted from Google Sheets product icon (Wikimedia Commons, Google brand colors #0F9D58 / #87CEAC) -->
+  <rect width="64" height="64" rx="14" fill="#fff"/>
+  <g transform="translate(12.5,6) scale(0.82)">
+    <path d="M29.583 0H4.438C1.997 0 0 1.997 0 4.438v56.208c0 2.44 1.997 4.437 4.438 4.437h38.458c2.441 0 4.438-1.997 4.438-4.437V17.75L29.583 0z" fill="#0F9D58"/>
+    <path d="M11.833 31.802V53.25H35.5V31.802H11.833zm10.355 18.49h-7.396v-3.698h7.396v3.698zm0-5.917h-7.396v-3.698h7.396v3.698zm0-5.917h-7.396v-3.698h7.396v3.698zm10.354 11.834h-7.396v-3.698h7.396v3.698zm0-5.917h-7.396v-3.698h7.396v3.698zm0-5.917h-7.396v-3.698h7.396v3.698z" fill="#F1F1F1"/>
+    <path d="M29.583 0v13.313c0 2.452 1.986 4.437 4.438 4.437H47.333L29.583 0z" fill="#87CEAC"/>
+  </g>
+</svg>

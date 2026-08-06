@@ -1,0 +1,20 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Google Sheets",
+  "slug": "google-sheets",
+  "version": "1.0.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\GoogleSheetsConnector",
+  "capabilities": [
+    "network",
+    "read",
+    "external_write"
+  ],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://sheets.google.com/",
+  "docs_url": "https://developers.google.com/sheets/api",
+  "category": "Spreadsheets",
+  "icon": "icon.svg"
+}

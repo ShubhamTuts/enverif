@@ -7,11 +7,23 @@ Thank you for improving Enverif. Contributions are organized around four tracks 
 ### Core
 Changes under `app/Core`, persistence, queueing, authentication, tenancy, audit or installer code. Core changes must include tests for security boundaries and state transitions.
 
-### Plugins
+## Plugins
 Connector drivers under `plugins/external` plus any reusable driver code. Plugins must declare capabilities accurately in `enverif.json`, never log secrets, and classify third-party writes as `external_write` or `destructive` as appropriate.
 
+**Quick start**
+
+1. Copy `plugins/external/` layout from `docs/extensions/plugins.md`.
+2. Add `enverif.json` + driver implementing `ConnectorDriver`.
+3. Drop a local `assets/icon.svg` (or PNG/WebP) — remote favicons are not used.
+4. Restart PHP / clear caches; the catalog picks up the plugin automatically.
+5. Open **Plugins → New connection**, fill credentials, **Test**, then attach the connection to an agent or tag `@plugin` in chat.
+
 ### Skills
-Procedural `SKILL.md` contributions. Keep instructions provider-neutral, document required capabilities, include source/license metadata when adapting prior work, and avoid embedding credentials.
+Procedural `SKILL.md` contributions. Keep instructions provider-neutral, document required capabilities, include source/license metadata when adapting prior work, and avoid embedding credentials. See `docs/extensions/skills.md` and `skills/builtin/` for examples.
+
+### Models / MCP
+- New BYOK providers belong under `app/Core/Models/Providers` and must be registered in `ProviderManager`. Keep suggested model IDs current with the vendor API docs; support custom IDs.
+- Remote MCP servers are configured in the UI (`docs/extensions/mcp.md`); protocol versions are configuration, not hard-coded product secrets.
 
 ### Translations
 UI strings under `lang/<locale>` and documentation translations. Preserve placeholder names and technical identifiers. Native-speaker review is preferred.

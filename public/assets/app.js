@@ -136,6 +136,21 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         approval: 'Human approval',
         output: 'Output',
     };
+    // SVG icons per node type (16×16 viewBox, stroke-based)
+    const nodeIcons = {
+        manual: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v4l2 2"/><circle cx="8" cy="8" r="6"/></svg>',
+        schedule: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>',
+        webhook: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 8a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M2 8a6 6 0 1 0 12 0"/><path d="M8 2v2M8 12v2M2 8H0M16 8h-2"/></svg>',
+        agent: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>',
+        connector: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h8M10 5l3 3-3 3"/><path d="M2 5V3h4"/><path d="M2 11v2h4"/></svg>',
+        skill: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2l1.8 3.6 4 .6-2.9 2.8.7 4L8 11l-3.6 1.9.7-4L2.1 6.2l4-.6z"/></svg>',
+        condition: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v6l4 4M8 8l-4 4"/><circle cx="8" cy="2" r="1.2"/></svg>',
+        delay: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>',
+        lead: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="2.5"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M11 7l1.5 1.5L15 6"/></svg>',
+        campaign: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 10V6l10-4v12L2 10z"/><path d="M2 10l3.5-1.5"/><path d="M5.5 8.5V13"/></svg>',
+        approval: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="12" height="9" rx="2"/><path d="M5 9l2 2 4-4"/></svg>',
+        output: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v8M5 8l3 3 3-3"/><path d="M3 13h10"/></svg>',
+    };
 
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"]/g, (character) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
@@ -208,7 +223,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             element.style.top = `${node.position?.y || 80}px`;
             element.innerHTML = `
                 <div class="workflow-node-head">
-                    <span class="workflow-node-icon">${escapeHtml((labels[node.type] || node.type).slice(0, 1).toUpperCase())}</span>
+                    <span class="workflow-node-icon">${nodeIcons[node.type] || escapeHtml((labels[node.type] || node.type).slice(0, 1).toUpperCase())}</span>
                     <div>
                         <div class="workflow-node-label">${escapeHtml(node.label || labels[node.type] || node.type)}</div>
                         <div class="workflow-node-type">${escapeHtml(labels[node.type] || node.type)}</div>
@@ -511,7 +526,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     const resize = () => {
         if (!prompt) return;
         prompt.style.height = 'auto';
-        prompt.style.height = `${Math.min(prompt.scrollHeight, 200)}px`;
+        prompt.style.height = `${Math.max(36, Math.min(prompt.scrollHeight, 200))}px`;
     };
     const scrollToBottom = () => requestAnimationFrame(() => {
         if (scroll) scroll.scrollTop = scroll.scrollHeight;
@@ -637,11 +652,14 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 
     prompt?.addEventListener('input', () => {
         resize();
-        const match = prompt.value.slice(0, prompt.selectionStart).match(/(?:^|\s)@([\w-]*)$/);
+        const before = prompt.value.slice(0, prompt.selectionStart);
+        const match = before.match(/(?:^|\s)@([\w-]*)$/);
         if (match && menu) {
             menu.hidden = false;
             if (search) search.value = match[1] || '';
             filterContext(match[1] || '');
+        } else if (!match && menu && !menu.hidden) {
+            menu.hidden = true;
         }
     });
     prompt?.addEventListener('keydown', (event) => {
@@ -673,6 +691,19 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
             agentSelect.value = input.value;
             agentSelect.dispatchEvent(new Event('change'));
         }
+        // Remove the @... trigger text from the prompt when an item is picked via context menu
+        if (prompt && input.checked) {
+            const before = prompt.value.slice(0, prompt.selectionStart);
+            const after = prompt.value.slice(prompt.selectionStart);
+            const cleaned = before.replace(/(?<=^|\s)@[\w-]*$/, '');
+            if (cleaned !== before) {
+                prompt.value = cleaned + after;
+                const pos = cleaned.length;
+                prompt.setSelectionRange(pos, pos);
+                resize();
+            }
+        }
+        if (menu) menu.hidden = true;
         refreshPills();
     }));
     agentSelect?.addEventListener('change', () => {

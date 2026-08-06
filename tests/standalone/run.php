@@ -441,8 +441,10 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
     }
 };
 
-$tests['release source reports semantic version 1.3.1'] = function (): void {
-    assert(trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION')) === '1.3.1');
+$tests['release source reports semantic version from VERSION file'] = function (): void {
+    $version = trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION'));
+    assert(preg_match('/^\d+\.\d+\.\d+$/', $version) === 1);
+    assert($version === '1.3.3');
 };
 
 
@@ -552,10 +554,11 @@ $tests['chat agent selection carries model connection model and effort defaults'
     foreach (['preferredConnection', 'preferredModel', 'preferredEffort'] as $needle) assert(str_contains($js, $needle));
 };
 
-$tests['chat validates active agent and model connection before queueing work'] = function (): void {
+$tests['chat validates model connection and auto-bootstraps the default agent'] = function (): void {
     $controller = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ChatController.php');
-    assert(str_contains($controller, 'Create or activate an agent before sending a chat message.'));
-    assert(str_contains($controller, 'Choose or configure an enabled AI model connection before sending.'));
+    assert(str_contains($controller, 'Connect an AI model (OpenAI, Claude, Gemini or DeepSeek) under AI Models before sending.'));
+    assert(str_contains($controller, 'Enverif Assistant') || str_contains($controller, 'auto-bootstrap') || str_contains($controller, 'Auto-resolve'));
+    assert(str_contains($controller, 'Connect an AI model first, then Enverif will start automatically.'));
 };
 
 $tests['assistant chat responses render safe markdown with final provenance'] = function (): void {

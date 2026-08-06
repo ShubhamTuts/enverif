@@ -44,13 +44,11 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
-## Enverif 1.3.1
+## Enverif 1.3.3
 
-The 1.3.1 release hardens the conversation as the durable operating surface and closes the UI/runtime gaps found during real shared-hosting deployment. Chat turns submit in place without navigating to a transport endpoint, thread URLs are updated with browser history, controls are consistently styled, assets are release-versioned to defeat stale LiteSpeed/browser caches, and the desktop shell no longer applies a duplicate sidebar offset.
+The 1.3.3 release makes BYOK model connections production-current and closes the remaining chat/plugin UI gaps. Suggested model catalogs now track live OpenAI, Anthropic, Gemini and DeepSeek API IDs (including DeepSeek V4 and current Claude / Gemini generations). Retired DeepSeek and Gemini identifiers are remapped automatically, provider failures surface the HTTP status and API error body in chat, and the composer attachment control uses a real paperclip icon instead of a broken glyph.
 
-Agent and workflow execution remain durable and snapshot mutable configuration. Interactive requests in Shared/Compatibility mode can opportunistically drain a bounded queue slice after the HTTP response while the once-per-minute cron/Web Cron remains authoritative for schedules and delayed work. Workflow validation now requires explicit condition branches and model-ready agent/skill executors.
-
-The release also retains the Laravel 13 UUID/workspace binding, installer recovery, workspace pivot, and shared-hosting root-routing fixes discovered during real Hostinger deployment testing. See the [product requirements](docs/PRODUCT-REQUIREMENTS.md) and [changelog](CHANGELOG.md).
+Light-mode button hover no longer washes out primary actions, form/action rows keep consistent gaps, provider cards use bundled brand assets, and scrollbars are styled for both themes. Agent and workflow execution remain durable; shared-hosting cron/Web Cron stays authoritative for unattended work. See the [product requirements](docs/PRODUCT-REQUIREMENTS.md) and [changelog](CHANGELOG.md).
 
 ## What ships
 

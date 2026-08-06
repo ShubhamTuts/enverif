@@ -2,7 +2,17 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.3.1
+**Target release:** 1.3.3
+
+### 1.3.3 production readiness addendum
+
+Version 1.3.3 closes BYOK model and chat UI production gaps discovered after shared-hosting deployment of 1.3.1/1.3.2:
+
+1. Suggested model catalogs must track current OpenAI, Anthropic, Gemini and DeepSeek public API IDs; retired DeepSeek/Gemini names must remap rather than fail obscurely.
+2. Provider failures must surface HTTP status and API error text into the chat final message (not only `storage/logs`).
+3. Chat attachment control must render a real icon; AI Models / Plugins cards must use bundled local brand assets (no remote favicon dependency).
+4. Light-mode primary button hover and form action gaps must remain readable and spaced.
+5. The GitHub application repository ships the Laravel app + `docs/` Markdown; marketing/docs static sites under `websites/` are optional packaging artifacts, not required for application CI.
 
 ### 1.3.1 installer-contract hotfix addendum
 

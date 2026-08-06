@@ -63,24 +63,20 @@
                     @if($message->role === 'user' && is_array($message->meta))
                         <div class="message-tags">
                             @foreach(($message->meta['mentions'] ?? []) as $mention)
-                                <span>@{{ $mention['type'] }} {{ $mention['label'] }}</span>
+                                <span class="mention-chip mention-{{ $mention['type'] ?? 'context' }}">{{ '@'.($mention['type'] ?? 'context') }} {{ $mention['label'] }}</span>
                             @endforeach
 
-                            @if(data_get($message->meta, 'model'))
-                                <span>model {{ data_get($message->meta, 'model') }}</span>
-                            @endif
-
                             @if(data_get($message->meta, 'effort'))
-                                <span>{{ ucfirst(data_get($message->meta, 'effort')) }}</span>
+                                <span class="mention-chip mention-effort">{{ ucfirst(data_get($message->meta, 'effort')) }}</span>
                             @endif
                         </div>
                     @elseif($message->role === 'assistant' && $execution)
                         <div class="message-tags">
-                            <span>{{ $execution['provider'] ?? 'model' }}</span>
+                            <span class="mention-chip mention-context">{{ ucfirst($execution['provider'] ?? 'model') }}</span>
                             @if(! empty($execution['model']))
-                                <span>{{ $execution['model'] }}</span>
+                                <span class="mention-chip mention-skill">{{ $execution['model'] }}</span>
                             @endif
-                            <span>{{ ucfirst($execution['effort'] ?? 'standard') }}</span>
+                            <span class="mention-chip mention-effort">{{ ucfirst($execution['effort'] ?? 'standard') }}</span>
                         </div>
                     @endif
                 </div>

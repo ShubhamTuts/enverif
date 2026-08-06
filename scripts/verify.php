@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 use App\Core\Plugins\PluginManifestValidator;
 
-$root = dirname(__DIR__);
+$root = str_replace('\\', '/', dirname(__DIR__));
 $errors = [];
 $checks = 0;
 
 $fail = static function (string $message) use (&$errors): void {
     $errors[] = $message;
+};
+
+$rel = static function (string $path) use ($root): string {
+    return ltrim(str_replace($root, '', str_replace('\\', '/', $path)), '/');
 };
 
 $required = [
@@ -18,13 +22,15 @@ $required = [
     'app/Core/Agents/AgentOrchestrator.php', 'app/Core/Agents/SystemPromptBuilder.php',
     'app/Core/Plugins/PluginRegistry.php', 'app/Core/Plugins/PluginManifestValidator.php',
     'skills/builtin/b2b-sales-agent/SKILL.md', 'skills/builtin/gtm-agents-starter/SKILL.md',
-    'skills/builtin/goose-growth-starter/SKILL.md', 'websites/enverif.com/index.php',
-    'websites/docs.enverif.com/index.php', 'docs/user-guide/memory-delegation.md',
+    'skills/builtin/goose-growth-starter/SKILL.md', 'docs/user-guide/memory-delegation.md',
     'VERSION', 'README-INSTALL.txt', '.htaccess', 'public/.htaccess',
-    'scripts/build-site.php', 'scripts/check-site.php', 'scripts/build-release.sh', 'scripts/ci-installer-smoke.sh',
-    '.github/workflows/ci.yml', '.github/workflows/pages.yml', '.github/workflows/release.yml',
+    'scripts/build-release.sh', 'scripts/ci-installer-smoke.sh',
+    '.github/workflows/ci.yml', '.github/workflows/release.yml',
     'docs/hosting/shared-hosting.md', 'docs/user-guide/email-automation.md', 'docs/user-guide/workflows.md',
+    'docs/user-guide/models.md', 'docs/extensions/plugins.md', 'docs/extensions/skills.md', 'docs/extensions/mcp.md',
     'tests/Feature/CoreHttpSmokeTest.php', 'tests/Feature/ChatHttpTest.php', 'tests/Feature/WorkflowRuntimeTest.php', 'tests/Feature/AgentAvatarTest.php', 'tests/Feature/InstallerHttpTest.php',
+    'app/Core/Models/Providers/OpenAIProvider.php', 'app/Core/Models/Providers/AnthropicProvider.php',
+    'app/Core/Models/Providers/GeminiProvider.php', 'app/Core/Models/Providers/DeepSeekProvider.php',
 ];
 foreach ($required as $file) {
     $checks++;
@@ -145,7 +151,7 @@ foreach ($runtimeIterator as $runtimeFile) {
     if ($runtimeFile->isFile() && str_ends_with($runtimeFile->getFilename(), '.php')) $runtimePhp[] = $runtimeFile->getPathname();
 }
 foreach ($runtimePhp as $runtimePath) {
-    $relative = str_replace($root.'/', '', str_replace('\\', '/', $runtimePath));
+    $relative = $rel($runtimePath);
     if ($relative === 'app/Http/Controllers/InstallController.php') continue;
     if (preg_match('/\benv\s*\(/', (string) file_get_contents($runtimePath))) {
         $fail("Runtime code must use config() instead of env() so config:cache is safe: {$relative}");
@@ -323,8 +329,26 @@ if (!str_contains($workflowForm, '$workflowResourcesJson') || str_contains($work
 }
 
 $checks++;
-foreach (['gmail','outlook','smtp','apollo','apify','google-search-console','google-analytics','google-maps','calendly','automation-webhook'] as $slug) {
+foreach (['gmail','outlook','smtp','apollo','apify','google-search-console','google-analytics','google-maps','calendly','automation-webhook','openai','anthropic','gemini','deepseek'] as $slug) {
     if (!is_file($root.'/public/assets/integrations/'.$slug.'.svg')) $fail("Missing bundled integration icon: {$slug}.svg");
+}
+
+$checks++;
+foreach (['deepseek-v4-flash','claude-sonnet-5','gemini-3.6-flash','gpt-5'] as $needle) {
+    $providersBlob = (string) file_get_contents($root.'/app/Core/Models/Providers/DeepSeekProvider.php')
+        .(string) file_get_contents($root.'/app/Core/Models/Providers/AnthropicProvider.php')
+        .(string) file_get_contents($root.'/app/Core/Models/Providers/GeminiProvider.php')
+        .(string) file_get_contents($root.'/app/Core/Models/Providers/OpenAIProvider.php');
+    if (!str_contains($providersBlob, $needle)) $fail("Model catalog missing current API id: {$needle}");
+}
+
+$checks++;
+$chatComposer = (string) file_get_contents($root.'/resources/views/chat/index.blade.php');
+if (!str_contains($chatComposer, 'composer-attach') || !str_contains($chatComposer, 'm21.44 11.05')) {
+    $fail('Chat composer must render a paperclip SVG for file uploads.');
+}
+if (str_contains($chatComposer, '⌁')) {
+    $fail('Chat composer must not use the broken attach glyph.');
 }
 
 $checks++;
@@ -370,22 +394,26 @@ foreach ($criticalViewContracts as [$controllerPath, $variables]) {
     }
 }
 
-$docCopies = [
-    'docs/architecture.md' => 'websites/docs.enverif.com/content/architecture.md',
-    'docs/PRODUCT-REQUIREMENTS.md' => 'websites/docs.enverif.com/content/PRODUCT-REQUIREMENTS.md',
-];
-foreach (['getting-started', 'user-guide', 'extensions', 'operations', 'hosting', 'developers', 'contributing'] as $group) {
-    foreach (glob($root."/docs/{$group}/*.md") ?: [] as $source) {
-        $rel = str_replace($root.'/', '', $source);
-        $docCopies[$rel] = 'websites/docs.enverif.com/content/'.substr($rel, strlen('docs/'));
+// Marketing/docs static sites are optional for the application repository.
+$checks++;
+if (getenv('ENVERIF_VERIFY_SITES') === '1' && is_dir($root.'/websites/docs.enverif.com/content')) {
+    $docCopies = [
+        'docs/architecture.md' => 'websites/docs.enverif.com/content/architecture.md',
+        'docs/PRODUCT-REQUIREMENTS.md' => 'websites/docs.enverif.com/content/PRODUCT-REQUIREMENTS.md',
+    ];
+    foreach (['getting-started', 'user-guide', 'extensions', 'operations', 'hosting', 'developers', 'contributing'] as $group) {
+        foreach (glob($root."/docs/{$group}/*.md") ?: [] as $source) {
+            $sourceRel = $rel($source);
+            $docCopies[$sourceRel] = 'websites/docs.enverif.com/content/'.substr($sourceRel, strlen('docs/'));
+        }
     }
-}
-foreach ($docCopies as $source => $copy) {
-    $checks++;
-    if (!is_file($root.'/'.$copy)) {
-        $fail("Docs site is missing content copy: {$copy}");
-    } elseif (hash_file('sha256', $root.'/'.$source) !== hash_file('sha256', $root.'/'.$copy)) {
-        $fail("Docs site content is stale: {$copy}");
+    foreach ($docCopies as $source => $copy) {
+        $checks++;
+        if (!is_file($root.'/'.$copy)) {
+            $fail("Docs site is missing content copy: {$copy}");
+        } elseif (is_file($root.'/'.$source) && hash_file('sha256', $root.'/'.$source) !== hash_file('sha256', $root.'/'.$copy)) {
+            $fail("Docs site content is stale: {$copy}");
+        }
     }
 }
 

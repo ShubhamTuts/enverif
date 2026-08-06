@@ -31,6 +31,20 @@
         'approval' => __('ui.human_approval'),
         'output' => __('ui.output'),
     ];
+    $paletteIcons = [
+        'manual'   => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v4l2 2"/><circle cx="8" cy="8" r="6"/></svg>',
+        'schedule' => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v3M11 1v3M2 7h12"/></svg>',
+        'webhook'  => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3"/><path d="M2 8a6 6 0 1 0 12 0"/></svg>',
+        'agent'    => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>',
+        'connector'=> '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h8M10 5l3 3-3 3"/><path d="M2 5V3h4"/><path d="M2 11v2h4"/></svg>',
+        'skill'    => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2l1.8 3.6 4 .6-2.9 2.8.7 4L8 11l-3.6 1.9.7-4L2.1 6.2l4-.6z"/></svg>',
+        'condition'=> '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v5"/><path d="M5 10h-2l5 4 5-4h-2V7"/></svg>',
+        'delay'    => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>',
+        'lead'     => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="2.5"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M11 7l1.5 1.5L15 6"/></svg>',
+        'campaign' => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 10V6l10-4v12L2 10z"/><path d="M5.5 8.5V13"/></svg>',
+        'approval' => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="12" height="9" rx="2"/><path d="M5 9l2 2 4-4"/></svg>',
+        'output'   => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v8M5 8l3 3 3-3"/><path d="M3 13h10"/></svg>',
+    ];
 @endphp
 
 <form
@@ -87,7 +101,7 @@
             <p>{{ __('ui.add_node_help') }}</p>
             @foreach($palette as $type => $label)
                 <button type="button" class="workflow-palette-item" draggable="true" data-node-type="{{ $type }}">
-                    <span>{{ strtoupper(substr($label, 0, 1)) }}</span>
+                    <span>{!! $paletteIcons[$type] ?? strtoupper(substr($label, 0, 1)) !!}</span>
                     {{ $label }}
                 </button>
             @endforeach

@@ -173,7 +173,7 @@ final class AgentOrchestrator
             );
         } catch (\Throwable $e) {
             report($e);
-            $this->fail($run, 'Model request failed. Check the provider connection and logs.', 'provider_error');
+            $this->fail($run, $this->providerFailureMessage($e, $connection->provider, $model), 'provider_error');
             return;
         }
 
@@ -470,6 +470,41 @@ final class AgentOrchestrator
             if ($connection) return $connection;
         }
         return ModelConnection::where('workspace_id', $agent->workspace_id)->where('enabled', true)->first();
+    }
+
+    private function providerFailureMessage(\Throwable $e, string $provider, string $model): string
+    {
+        $detail = trim($e->getMessage());
+        if ($e instanceof \Illuminate\Http\Client\RequestException) {
+            $response = $e->response;
+            $status = $response?->status();
+            $body = $response?->json();
+            $apiMessage = data_get($body, 'error.message')
+                ?? data_get($body, 'error.msg')
+                ?? data_get($body, 'message')
+                ?? data_get($body, 'error');
+            if (is_array($apiMessage)) {
+                $apiMessage = json_encode($apiMessage, JSON_UNESCAPED_SLASHES);
+            }
+            if (is_string($apiMessage) && trim($apiMessage) !== '') {
+                $detail = trim($apiMessage);
+            }
+            if ($status) {
+                $detail = "HTTP {$status}: {$detail}";
+            }
+        }
+
+        $detail = preg_replace('/\s+/', ' ', $detail) ?: 'Check the provider connection, model ID, and API key.';
+        $detail = mb_substr($detail, 0, 420);
+        $hint = match ($provider) {
+            'deepseek' => ' Use a current DeepSeek model such as deepseek-v4-flash or deepseek-v4-pro (legacy IDs are remapped automatically).',
+            'openai' => ' Confirm the OpenAI model ID and that the key can access Chat Completions.',
+            'anthropic' => ' Confirm the Claude model ID (for example claude-sonnet-5 or claude-opus-5).',
+            'gemini' => ' Confirm the Gemini model ID (for example gemini-3.6-flash or gemini-2.5-pro).',
+            default => '',
+        };
+
+        return "Model request failed for {$provider}/{$model}. {$detail}{$hint}";
     }
 
     private function fail(AgentRun $run, string $message, string $reason): void

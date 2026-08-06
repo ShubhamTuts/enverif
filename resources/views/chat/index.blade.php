@@ -114,24 +114,24 @@
             <div class="composer-selection-row">
                 <label class="composer-select">
                     <span>Agent</span>
-                    <select name="agent_id" data-chat-agent aria-label="Agent" @disabled($agents->isEmpty())>
-                        @forelse($agents as $agent)
-                            <option
-                                value="{{ $agent->id }}"
-                                data-model-connection="{{ $agent->model_connection_id }}"
-                                data-model="{{ $agent->model }}"
-                                data-effort="{{ $agent->default_effort ?: 'standard' }}"
-                                @selected((int) $selectedAgentId === $agent->id)
-                            >{{ $agent->name }}</option>
-                        @empty
-                            <option value="">Create an agent first</option>
-                        @endforelse
-                    </select>
+                    <select name="agent_id" data-chat-agent aria-label="Agent" @disabled($agents->isEmpty() && $modelConnections->isEmpty())>
+                                @forelse($agents as $agent)
+                                    <option
+                                        value="{{ $agent->id }}"
+                                        data-model-connection="{{ $agent->model_connection_id }}"
+                                        data-model="{{ $agent->model }}"
+                                        data-effort="{{ $agent->default_effort ?: 'standard' }}"
+                                        @selected((int) $selectedAgentId === $agent->id)
+                                    >{{ $agent->name }}</option>
+                                @empty
+                                    <option value="">Auto-configured on first message</option>
+                                @endforelse
+                            </select>
                 </label>
 
                 <label class="composer-select">
                     <span>Connection</span>
-                    <select name="model_connection_id" data-chat-model-connection aria-label="Model connection">
+                    <select name="model_connection_id" data-chat-model-connection aria-label="Model connection" autocomplete="off">
                         <option value="">Agent default</option>
                         @foreach($modelConnections as $connection)
                             <option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}" @selected((int) $selectedConnectionId === $connection->id)>
@@ -143,7 +143,7 @@
 
                 <label class="composer-select">
                     <span>Model</span>
-                    <select name="model" data-chat-model aria-label="Model">
+                    <select name="model" data-chat-model aria-label="Model" autocomplete="off">
                         <option value="">Connection default</option>
                         @foreach($currentModels as $modelId)
                             <option value="{{ $modelId }}" @selected(! $customSelectedModel && $selectedModel === $modelId)>{{ $modelId }}</option>
@@ -154,7 +154,7 @@
 
                 <label class="composer-select">
                     <span>Effort</span>
-                    <select name="effort" data-chat-effort aria-label="Execution effort">
+                    <select name="effort" data-chat-effort aria-label="Execution effort" autocomplete="off">
                         <option value="fast" @selected($selectedEffort === 'fast')>Fast</option>
                         <option value="standard" @selected($selectedEffort === 'standard')>Standard</option>
                         <option value="deep" @selected($selectedEffort === 'deep')>Deep</option>
@@ -172,13 +172,9 @@
                 <input class="field mono" name="custom_model" data-chat-custom-model value="{{ $customSelectedModel ? $selectedModel : '' }}" placeholder="Custom provider model ID">
             </div>
 
-            @if($agents->isEmpty() || $modelConnections->isEmpty())
+            @if($modelConnections->isEmpty())
                 <div class="chat-preflight-notice">
-                    @if($agents->isEmpty())
-                        <span>No active agent yet.</span> <a href="{{ route('agents.create') }}">Create an agent</a>.
-                    @else
-                        <span>No enabled AI model connection yet.</span> <a href="{{ route('models.create') }}">Connect a model</a>.
-                    @endif
+                    <span>No AI model connected yet.</span> <a href="{{ route('models.create') }}">Connect a model</a> to start chatting. Enverif will configure itself automatically.
                 </div>
             @endif
             <div class="attachment-preview" data-attachment-preview></div>
@@ -189,9 +185,11 @@
                 <div class="composer-left">
                     <button type="button" class="composer-plus" data-context-toggle aria-label="{{ __('ui.tag_context') }}">+</button>
 
-                    <label class="composer-attach" title="Attach images or files">
+                    <label class="composer-attach" title="Attach images or files" aria-label="Attach images or files">
                         <input type="file" name="attachments[]" data-chat-attachments multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json,.doc,.docx,.xls,.xlsx">
-                        <span>⌁</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m21.44 11.05-8.49 8.49a5.25 5.25 0 0 1-7.43-7.43l8.84-8.84a3.5 3.5 0 0 1 4.95 4.95l-8.84 8.85a1.75 1.75 0 0 1-2.47-2.48l8.13-8.14"/>
+                        </svg>
                     </label>
 
                     <div class="context-menu" data-context-menu hidden>
@@ -296,7 +294,7 @@
                     <div class="selected-context" data-selected-context></div>
                 </div>
 
-                <button class="send-button" type="submit" aria-label="{{ __('ui.send') }}" @disabled($agents->isEmpty() || $modelConnections->isEmpty())>
+                <button class="send-button" type="submit" aria-label="{{ __('ui.send') }}" @disabled($modelConnections->isEmpty())>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path d="m5 12 7-7 7 7M12 5v14"/>
                     </svg>

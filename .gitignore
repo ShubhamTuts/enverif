@@ -21,3 +21,6 @@ yarn-error.log
 .DS_Store
 
 .worktrees/
+
+# Marketing / docs static sites ship separately from the application repository.
+/websites/

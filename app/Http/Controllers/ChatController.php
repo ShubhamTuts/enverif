@@ -67,14 +67,26 @@ final class ChatController extends Controller
             throw ValidationException::withMessages(['prompt' => 'Enter a message or attach at least one file.']);
         }
 
+        // --- Auto-resolve or auto-bootstrap the agent ---
         $agentId = (int) ($data['agent_id'] ?? ($thread?->default_agent_id ?: $thread?->agent_id ?: 0));
         if ($agentId <= 0) $agentId = (int) Agent::where('status', 'active')->value('id');
+
+        // Zero-friction first-use: if no agent exists yet, auto-create a default one.
         if ($agentId <= 0) {
-            throw ValidationException::withMessages(['agent_id' => 'Create or activate an agent before sending a chat message.']);
+            $agent = $this->bootstrapDefaultAgent($request);
+            if (!$agent) {
+                throw ValidationException::withMessages(['agent_id' => 'Connect an AI model first, then Enverif will start automatically.']);
+            }
+            $agentId = $agent->id;
         }
+
         $agent = Agent::whereKey($agentId)->where('status', 'active')->first();
         if (!$agent) {
-            throw ValidationException::withMessages(['agent_id' => 'The selected agent is unavailable in this workspace.']);
+            // Try fallback to any active agent
+            $agent = Agent::where('status', 'active')->first();
+            if (!$agent) {
+                throw ValidationException::withMessages(['agent_id' => 'No active agent found. Connect a model and Enverif will configure itself.']);
+            }
         }
 
         $selection = ChatSelection::normalize(
@@ -95,7 +107,7 @@ final class ChatController extends Controller
 
         [$connection, $model] = $this->resolveModelSelection($data, $thread, $agent);
         if (!$connection) {
-            throw ValidationException::withMessages(['model_connection_id' => 'Choose or configure an enabled AI model connection before sending.']);
+            throw ValidationException::withMessages(['model_connection_id' => 'Connect an AI model (OpenAI, Claude, Gemini or DeepSeek) under AI Models before sending.']);
         }
         $effort = (string) ($data['effort'] ?? $thread?->default_effort ?: $agent->default_effort ?: 'standard');
         if (!in_array($effort, ['fast', 'standard', 'deep'], true)) $effort = 'standard';
@@ -350,12 +362,57 @@ final class ChatController extends Controller
         ];
     }
 
+    /**
+     * Auto-bootstrap a default "Enverif Assistant" agent the first time a user sends
+     * a chat message without any agent configured. This gives zero-friction first-use:
+     * connect a model, type a message, get a response — no manual agent creation needed.
+     */
+    private function bootstrapDefaultAgent(Request $request): ?Agent
+    {
+        $workspaceId = (int) session('workspace_id');
+        if ($workspaceId <= 0) return null;
+
+        $connection = ModelConnection::where('workspace_id', $workspaceId)->where('enabled', true)->first();
+        if (!$connection) return null;
+
+        return Agent::create([
+            'workspace_id' => $workspaceId,
+            'name' => 'Enverif Assistant',
+            'slug' => 'enverif-assistant-' . Str::lower(Str::random(5)),
+            'description' => 'Default assistant. Research, answer questions, manage leads, run workflows and coordinate specialist agents.',
+            'instructions' => "You are Enverif, an intelligent revenue and research assistant.\n\n"
+                . "You can:\n"
+                . "- Research companies, prospects and markets\n"
+                . "- Answer questions using available tools and skills\n"
+                . "- Search and update leads and campaigns\n"
+                . "- Draft content, emails and outreach\n"
+                . "- Run and coordinate workflows\n"
+                . "- Delegate to specialist agents when appropriate\n\n"
+                . "Always be concise, evidence-based and action-oriented. "
+                . "Distinguish verified facts from assumptions. "
+                . "Never claim an action succeeded unless confirmed by a tool result.",
+            'status' => 'active',
+            'model_connection_id' => $connection->id,
+            'model' => $connection->default_model,
+            'default_effort' => 'standard',
+            'max_steps' => 40,
+            'max_runtime_seconds' => 900,
+            'max_cost_usd' => 10,
+            'policy' => ['allow' => [], 'deny' => [], 'allow_external_writes' => false, 'allow_destructive' => false],
+        ]);
+    }
+
     /** @param array<string,mixed> $data @return array{0:?ModelConnection,1:?string} */
     private function resolveModelSelection(array $data, ?ChatThread $thread, Agent $agent): array
     {
         $connectionId = (int) ($data['model_connection_id'] ?? $thread?->default_model_connection_id ?: $agent->model_connection_id ?: 0);
         $connection = $connectionId > 0 ? ModelConnection::whereKey($connectionId)->where('enabled', true)->first() : null;
         if ($connectionId > 0 && !$connection) throw ValidationException::withMessages(['model_connection_id' => 'The selected model connection is unavailable in this workspace.']);
+
+        // Fall back to any enabled connection in the workspace
+        if (!$connection) {
+            $connection = ModelConnection::where('workspace_id', $agent->workspace_id)->where('enabled', true)->first();
+        }
 
         $submitted = array_key_exists('model', $data);
         $model = $submitted ? trim((string) ($data['model'] ?? '')) : trim((string) ($thread?->default_model ?: ''));
@@ -365,7 +422,8 @@ final class ChatController extends Controller
         }
         if ($model === '' && $connection) $model = $connection->default_model ?: ($this->providers->get($connection->provider)->models()[0] ?? null);
         if ($model !== '' && $connection && $submitted && !in_array($model, $this->providers->get($connection->provider)->models(), true) && trim((string) ($data['custom_model'] ?? '')) === '') {
-            throw ValidationException::withMessages(['model' => 'Choose a provider model or select Custom model ID.']);
+            // Custom model ID entered inline — allow it through rather than blocking
+            $model = $model;
         }
         return [$connection, $model !== '' ? $model : null];
     }

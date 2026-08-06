@@ -51,8 +51,8 @@ Route::middleware('installed')->group(function () {
         Route::post('/campaigns/{campaign}/leads', [CampaignController::class, 'addLeads'])->name('campaigns.leads.store');
         Route::delete('/campaigns/{campaign}/leads/{lead}', [CampaignController::class, 'removeLead'])->name('campaigns.leads.destroy');
 
-        Route::resource('skills', SkillController::class)->except('show');
         Route::post('/skills/install', [SkillController::class, 'install'])->name('skills.install');
+        Route::resource('skills', SkillController::class)->except('show');
         Route::post('/skills/{skill}/toggle', [SkillController::class, 'toggle'])->name('skills.toggle');
 
         Route::resource('workflows', WorkflowController::class);

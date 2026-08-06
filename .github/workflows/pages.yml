@@ -1,17 +1,8 @@
 name: GitHub Pages
 
+# Optional. The application repository ships Markdown docs under docs/.
+# Enable this workflow only when websites/ assets are present in a docs/site fork.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs/**'
-      - 'site/**'
-      - 'scripts/build-site.php'
-      - 'scripts/check-site.php'
-      - 'websites/enverif.com/assets/site.css'
-      - 'websites/docs.enverif.com/assets/docs.css'
-      - 'public/assets/enverif-mark.svg'
-      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,6 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Require websites packaging tree
+        run: |
+          test -d websites/enverif.com
+          test -d websites/docs.enverif.com
+          test -f scripts/build-site.php
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -40,12 +36,11 @@ jobs:
           path: site
 
   deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
     steps:
-      - name: Deploy GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4

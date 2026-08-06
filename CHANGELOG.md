@@ -2,6 +2,58 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.3 — 2026-08-06
+
+### Bug fixes
+- Fixed chat file-upload control rendering a broken glyph; composer now uses an inline paperclip SVG.
+- Fixed light-mode primary button hover washing out to the panel background (global `button:hover` override).
+- Fixed form/action row spacing for plugin connections, model tests and connector OAuth controls.
+- Surfaced provider HTTP status and API error bodies in chat when a model request fails (instead of a generic message only).
+
+### AI models
+- OpenAI suggested models updated to current Chat Completions IDs: `gpt-5.4`, `gpt-5.2`, `gpt-5`, `gpt-5-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`, `gpt-4o-mini`, `o3`, `o4-mini`, `o3-mini`, `o1`, `o1-mini`.
+- Anthropic suggested models updated to current Claude API IDs: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5`, `claude-opus-4-8`, `claude-sonnet-4-6`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-fable-5`.
+- Gemini suggested models updated; shut-down 2.0/1.5 IDs remapped onto current Flash/Pro models.
+- DeepSeek suggested models replaced with current API IDs `deepseek-v4-flash` and `deepseek-v4-pro`; retired aliases (`deepseek-chat`, `deepseek-reasoner`, `deepseek-v3`, …) remapped automatically.
+- Anthropic Fast/Standard/Deep maps to `output_config.effort` on supported generations; DeepSeek V4 maps to `reasoning_effort`.
+
+### UI
+- AI Models provider cards prefer bundled brand PNG/WebP assets with SVG fallbacks.
+- Improved DeepSeek integration SVG and scrollbar styling for light/dark themes.
+- Consistent gaps on integration grids, composer attach hover, and table action rows.
+
+### Repository
+- Application GitHub package focuses on the Laravel app + Markdown docs; `websites/` marketing/docs sites are optional and no longer required for application verification.
+
+## 1.3.2 — 2026-08-06
+
+### Bug fixes
+- Fixed chat transcript displaying raw `{{ $mention['type'] }}` Blade syntax in message tags instead of clean `@agent Name` chips.
+- Added color-coded mention chips per context type (agent, plugin, skill, workflow, lead, campaign, effort).
+- Fixed `@mention` context trigger in chat textarea: selecting a context item now removes the trigger text and hides the context menu automatically.
+- Fixed textarea resize to enforce a minimum 36px height after clearing, preventing visual collapse.
+- Fixed Skills page 403 from Apache blocking `/skills` route: root `.htaccess` regex changed from `(?:/|$)` to `/` so only filesystem directory access is blocked, not the application route.
+- Fixed `skills.install` route registration order: moved before resource group to prevent route-model binding conflict on `POST /skills/install`.
+- Updated OpenAI suggested models to current IDs: `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-4`, `o1`, `o1-mini`, `o3-mini` (removed invalid `gpt-5`, `gpt-5-mini`, `gpt-4.1`).
+- Fixed OpenAI reasoning effort parameter — applied only to actual reasoning models (`o1`, `o1-mini`, `o3-mini`).
+- Updated Anthropic models: added `claude-3-7-sonnet-20250219`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5`.
+- Expanded Gemini models: added `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-1.5-pro`, `gemini-1.5-flash`.
+- Expanded DeepSeek models: added `deepseek-coder`, `deepseek-v3`, `deepseek-v2.5`.
+- Added real SVG brand icons for OpenAI, Anthropic (Claude), Google Gemini and DeepSeek in the AI Models page.
+- Added `autocomplete="off"` to chat composer selects to suppress browser "×" clear chrome.
+- Context menu now auto-closes when typing removes the `@` trigger character.
+
+### Features
+- **Zero-friction first-use**: `ChatController` now auto-bootstraps an "Enverif Assistant" agent the first time a user sends a message without any agent configured. Connect a model, type a message, get a response — no manual agent creation required.
+- Chat composer send button is now only disabled when no model connection exists (not when no agents exist, since auto-bootstrap handles that).
+- Preflight notice updated to only mention model connection (no longer warns about missing agent separately).
+- Workflow builder palette and canvas nodes now render proper SVG icons per node type (Manual trigger, Schedule, Webhook, AI agent, Plugin action, Skill context, Condition, Delay, Lead action, Campaign action, Human approval, Output) instead of letter initials.
+
+### UI / Design
+- Completely rewritten `enverif.com/assets/site.css`: sticky frosted-glass nav, better gradient backgrounds, enhanced product shell preview, feature cards grid, improved typography and responsive layout.
+- Completely rewritten `docs.enverif.com/assets/docs.css`: clean readable layout, improved sidebar nav, sticky header with backdrop blur, better code blocks and table styling.
+- Updated AI Models documentation with complete per-provider model lists, API details, BYOK and pricing notes.
+
 ## 1.3.1 — 2026-08-06
 
 - Fixed `/install` returning a Laravel 500 because the installer Blade template referenced `$installModelCatalogJson` without the controller supplying it.

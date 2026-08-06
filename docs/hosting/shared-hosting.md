@@ -10,6 +10,13 @@ When a host cannot change document root, keep the secure root `.htaccess`. It de
 
 The explicit bare-root rule matters on Hostinger/LiteSpeed: rewriting `/` to the `public/` **directory** can inherit the wrong `DirectoryIndex` and produce a 403 before Laravel runs.
 
+
+## Interactive queue kick
+
+Shared and Compatibility modes keep cron/Web Cron as the authoritative background runner. For an interactive chat turn, manual agent run, workflow run/test, approval, retry/resume or webhook request, Enverif also registers a bounded Laravel terminating callback after the HTTP response has been sent. That callback enters the same `TickRunner` lock and can process a small amount of `agents,default` queue work immediately. This prevents a user-triggered action from appearing frozen while waiting for the next one-minute cron tick.
+
+`ENVERIF_WEB_KICK_BUDGET` defaults to 20 seconds and is clamped to a safe 5–30 second range. The kick never replaces the once-per-minute tick for schedules, delayed workflows or unattended automation.
+
 ## Runtime mode
 
 Choose **Shared Hosting** during installation when Redis/persistent workers are unavailable. Enverif uses MySQL-backed queue/cache and the bounded tick runner.
@@ -24,9 +31,9 @@ The tick acquires a lock, dispatches due schedules, drains a bounded amount of q
 
 If CLI cron is unavailable, configure the signed Web Cron endpoint shown in System Health/Settings. It executes the same bounded tick service; it does not expose arbitrary Artisan execution.
 
-## Upgrading from 1.1.x to 1.2.0
+## Upgrading an existing installation to 1.3.0
 
-Back up the database and `.env`. A full GitHub no-SSH release may be extracted as documented by the release notes. If using the separately named 1.2.0 **shared-hosting update** archive, preserve your existing `vendor/` and `.env`, overwrite the application files, remove a stale `bootstrap/cache/config.php` if present, then run the database migration/recovery flow.
+Back up the database and `.env`. A full GitHub no-SSH release may be extracted as documented by the release notes. If using the separately named 1.3.0 **shared-hosting update** archive, preserve your existing `vendor/` and `.env`, overwrite the application files, remove a stale `bootstrap/cache/config.php` if present, then run the database migration/recovery flow.
 
 The 1.2 migration adds persistent chat defaults/history execution fields, private attachment records, agent avatar/default-effort fields and workflow run mode/retry fields.
 

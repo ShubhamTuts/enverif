@@ -5,7 +5,7 @@
     <div class="installer-head">
         <div class="auth-brand" style="margin:0">
             <img src="{{ asset('assets/enverif-mark.svg') }}" alt="Enverif">
-            <div><strong>Enverif</strong><div class="small muted">by Codefreex · {{ __('ui.tagline') }}</div></div>
+            <div><strong>Enverif</strong><div class="small muted">{{ __('ui.tagline') }}</div></div>
         </div>
         <button class="icon-btn" data-theme-toggle type="button" aria-label="Toggle appearance">◐</button>
     </div>
@@ -82,7 +82,7 @@
 
         @php($selectedProvider = old('provider',''))
         @php($selectedInstallModel = old('default_model',''))
-        <section class="installer-step" data-install-step="4" data-install-model-catalog='@json($modelCatalog)'>
+        <section class="installer-step" data-install-step="4" data-install-model-catalog="{{ $installModelCatalogJson }}">
             <div class="card card-pad"><span class="eyebrow">Step 5</span><h2>First AI model <small class="muted">optional</small></h2><p class="muted">Choose a provider and model from the supported catalog. Custom model IDs remain available for compatible provider endpoints.</p>
                 <div class="form-grid">
                     <div class="form-group"><label class="form-label">Provider</label><select class="select" name="provider" data-install-provider><option value="">Skip for now</option><option value="openai" @selected($selectedProvider==='openai')>OpenAI</option><option value="anthropic" @selected($selectedProvider==='anthropic')>Anthropic Claude</option><option value="gemini" @selected($selectedProvider==='gemini')>Google Gemini</option><option value="deepseek" @selected($selectedProvider==='deepseek')>DeepSeek</option></select></div>

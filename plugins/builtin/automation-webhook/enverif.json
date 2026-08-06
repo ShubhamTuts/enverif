@@ -15,5 +15,5 @@
   "homepage": "https://n8n.io/",
   "docs_url": "https://docs.n8n.io/",
   "category": "Automation",
-  "icon": "https://www.google.com/s2/favicons?domain=n8n.io&sz=128"
+  "icon": "icon.svg"
 }

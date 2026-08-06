@@ -11,12 +11,16 @@
     $customSelectedModel = $selectedModel !== ''
         && $currentConnection
         && ! in_array($selectedModel, $currentModels, true);
+    $chatModelCatalogJson = json_encode(
+        $modelCatalog,
+        JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES
+    );
 @endphp
 
 <div
     class="chat-shell"
     data-chat-shell
-    data-model-catalog='@json($modelCatalog)'
+    data-model-catalog="{{ $chatModelCatalogJson }}"
     @if($thread)
         data-status-url="{{ route('chat.status', $thread) }}"
         data-thread-id="{{ $thread->id }}"
@@ -97,101 +101,9 @@
                 </div>
             @endif
         @else
-            <div class="chat-transcript" data-chat-transcript>
-                @foreach($thread->messages as $message)
-                    @php
-                        $execution = data_get($message->meta, 'execution', []);
-                    @endphp
-
-                    <article class="chat-message {{ $message->role }}" data-message-id="{{ $message->id }}">
-                        <div class="message-avatar">
-                            @if($message->role === 'assistant')
-                                @php
-                                    $messageAgentId = (int) data_get($message->meta, 'agent_id', $thread->default_agent_id);
-                                @endphp
-
-                                @if($messageAgentId)
-                                    <img src="{{ route('agents.avatar', $messageAgentId) }}" alt="">
-                                @else
-                                    <img src="{{ asset('assets/enverif-mark.svg') }}" alt="Enverif">
-                                @endif
-                            @else
-                                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-                            @endif
-                        </div>
-
-                        <div class="message-body">
-                            <div class="message-meta">
-                                <span>{{ $message->role === 'assistant' ? ($thread->defaultAgent?->name ?? 'Enverif') : __('ui.you') }}</span>
-
-                                @if($message->role === 'assistant' && $message->kind === 'final')
-                                    <span class="final-chip">Final</span>
-                                @endif
-
-                                @if($message->run_id && $message->role === 'assistant')
-                                    <a href="{{ route('runs.show', $message->run_id) }}">{{ __('ui.view_run') }}</a>
-                                @endif
-                            </div>
-
-                            @if($message->content !== '')
-                                <div class="message-content">{!! nl2br(e($message->content)) !!}</div>
-                            @endif
-
-                            @if($message->attachments->isNotEmpty())
-                                <div class="message-attachments">
-                                    @foreach($message->attachments as $attachment)
-                                        <a class="attachment-chip" href="{{ route('chat.attachments.show', $attachment) }}">
-                                            <span>↗</span>
-                                            <b>{{ $attachment->original_name }}</b>
-                                            <small>{{ number_format($attachment->size_bytes / 1024, 1) }} KB</small>
-                                        </a>
-                                    @endforeach
-                                </div>
-                            @endif
-
-                            @if($message->role === 'user' && is_array($message->meta))
-                                <div class="message-tags">
-                                    @foreach(($message->meta['mentions'] ?? []) as $mention)
-                                        <span>@{{ $mention['type'] }} {{ $mention['label'] }}</span>
-                                    @endforeach
-
-                                    @if(data_get($message->meta, 'model'))
-                                        <span>model {{ data_get($message->meta, 'model') }}</span>
-                                    @endif
-
-                                    @if(data_get($message->meta, 'effort'))
-                                        <span>{{ ucfirst(data_get($message->meta, 'effort')) }}</span>
-                                    @endif
-                                </div>
-                            @elseif($message->role === 'assistant' && $execution)
-                                <div class="message-tags">
-                                    <span>{{ $execution['provider'] ?? 'model' }}</span>
-                                    <span>{{ $execution['model'] ?? '' }}</span>
-                                    <span>{{ ucfirst($execution['effort'] ?? 'standard') }}</span>
-                                </div>
-                            @endif
-                        </div>
-                    </article>
-                @endforeach
+            <div data-chat-live-region>
+                @include('chat._transcript', ['thread' => $thread, 'user' => auth()->user()])
             </div>
-
-            @php
-                $lastUser = $thread->messages->where('role', 'user')->last();
-                $hasAssistant = $lastUser
-                    && $thread->messages->where('role', 'assistant')->where('run_id', $lastUser->run_id)->isNotEmpty();
-            @endphp
-
-            @if($lastUser && ! $hasAssistant)
-                <div class="chat-thinking" data-chat-thinking>
-                    <img src="{{ asset('assets/enverif-mark.svg') }}" alt="">
-                    <span></span><span></span><span></span>
-                    <em data-chat-stage>{{ $thread->defaultAgent?->name ?? __('ui.agent') }} {{ __('ui.is_working') }}</em>
-                    <form method="post" action="{{ route('chat.stop', $thread) }}">
-                        @csrf
-                        <button class="btn btn-sm">Stop</button>
-                    </form>
-                </div>
-            @endif
         @endif
     </div>
 
@@ -202,16 +114,24 @@
             <div class="composer-selection-row">
                 <label class="composer-select">
                     <span>Agent</span>
-                    <select name="agent_id" data-chat-agent>
-                        @foreach($agents as $agent)
-                            <option value="{{ $agent->id }}" @selected((int) $selectedAgentId === $agent->id)>{{ $agent->name }}</option>
-                        @endforeach
+                    <select name="agent_id" data-chat-agent aria-label="Agent" @disabled($agents->isEmpty())>
+                        @forelse($agents as $agent)
+                            <option
+                                value="{{ $agent->id }}"
+                                data-model-connection="{{ $agent->model_connection_id }}"
+                                data-model="{{ $agent->model }}"
+                                data-effort="{{ $agent->default_effort ?: 'standard' }}"
+                                @selected((int) $selectedAgentId === $agent->id)
+                            >{{ $agent->name }}</option>
+                        @empty
+                            <option value="">Create an agent first</option>
+                        @endforelse
                     </select>
                 </label>
 
                 <label class="composer-select">
                     <span>Connection</span>
-                    <select name="model_connection_id" data-chat-model-connection>
+                    <select name="model_connection_id" data-chat-model-connection aria-label="Model connection">
                         <option value="">Agent default</option>
                         @foreach($modelConnections as $connection)
                             <option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}" @selected((int) $selectedConnectionId === $connection->id)>
@@ -223,7 +143,7 @@
 
                 <label class="composer-select">
                     <span>Model</span>
-                    <select name="model" data-chat-model>
+                    <select name="model" data-chat-model aria-label="Model">
                         <option value="">Connection default</option>
                         @foreach($currentModels as $modelId)
                             <option value="{{ $modelId }}" @selected(! $customSelectedModel && $selectedModel === $modelId)>{{ $modelId }}</option>
@@ -234,7 +154,7 @@
 
                 <label class="composer-select">
                     <span>Effort</span>
-                    <select name="effort" data-chat-effort>
+                    <select name="effort" data-chat-effort aria-label="Execution effort">
                         <option value="fast" @selected($selectedEffort === 'fast')>Fast</option>
                         <option value="standard" @selected($selectedEffort === 'standard')>Standard</option>
                         <option value="deep" @selected($selectedEffort === 'deep')>Deep</option>
@@ -242,6 +162,7 @@
                 </label>
 
                 <label class="composer-scope">
+                    <input type="hidden" name="persist_defaults" value="0">
                     <input type="checkbox" name="persist_defaults" value="1" checked>
                     <span>Keep for this chat</span>
                 </label>
@@ -251,7 +172,17 @@
                 <input class="field mono" name="custom_model" data-chat-custom-model value="{{ $customSelectedModel ? $selectedModel : '' }}" placeholder="Custom provider model ID">
             </div>
 
+            @if($agents->isEmpty() || $modelConnections->isEmpty())
+                <div class="chat-preflight-notice">
+                    @if($agents->isEmpty())
+                        <span>No active agent yet.</span> <a href="{{ route('agents.create') }}">Create an agent</a>.
+                    @else
+                        <span>No enabled AI model connection yet.</span> <a href="{{ route('models.create') }}">Connect a model</a>.
+                    @endif
+                </div>
+            @endif
             <div class="attachment-preview" data-attachment-preview></div>
+            <div class="chat-submit-error" data-chat-error role="alert" hidden></div>
             <textarea name="prompt" data-chat-prompt rows="1" placeholder="{{ __('ui.message_enverif') }}" maxlength="20000">{{ old('prompt') }}</textarea>
 
             <div class="composer-controls">
@@ -365,7 +296,7 @@
                     <div class="selected-context" data-selected-context></div>
                 </div>
 
-                <button class="send-button" type="submit" aria-label="{{ __('ui.send') }}">
+                <button class="send-button" type="submit" aria-label="{{ __('ui.send') }}" @disabled($agents->isEmpty() || $modelConnections->isEmpty())>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path d="m5 12 7-7 7 7M12 5v14"/>
                     </svg>

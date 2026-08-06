@@ -21,14 +21,23 @@ $required = [
     'skills/builtin/goose-growth-starter/SKILL.md', 'websites/enverif.com/index.php',
     'websites/docs.enverif.com/index.php', 'docs/user-guide/memory-delegation.md',
     'VERSION', 'README-INSTALL.txt', '.htaccess', 'public/.htaccess',
-    'scripts/build-site.php', 'scripts/check-site.php', 'scripts/build-release.sh',
+    'scripts/build-site.php', 'scripts/check-site.php', 'scripts/build-release.sh', 'scripts/ci-installer-smoke.sh',
     '.github/workflows/ci.yml', '.github/workflows/pages.yml', '.github/workflows/release.yml',
     'docs/hosting/shared-hosting.md', 'docs/user-guide/email-automation.md', 'docs/user-guide/workflows.md',
+    'tests/Feature/CoreHttpSmokeTest.php', 'tests/Feature/ChatHttpTest.php', 'tests/Feature/WorkflowRuntimeTest.php', 'tests/Feature/AgentAvatarTest.php',
 ];
 foreach ($required as $file) {
     $checks++;
     if (!is_file($root.'/'.$file)) $fail("Missing required file: {$file}");
 }
+
+$checks++;
+$version = trim((string) file_get_contents($root.'/VERSION'));
+if (!preg_match('/^\d+\.\d+\.\d+$/', $version)) $fail('VERSION must be a semantic X.Y.Z version.');
+$prd = (string) file_get_contents($root.'/docs/PRODUCT-REQUIREMENTS.md');
+if (!str_contains($prd, '**Target release:** '.$version)) $fail('Product requirements target release must match VERSION.');
+$readme = (string) file_get_contents($root.'/README.md');
+if (!str_contains($readme, '## Enverif '.$version)) $fail('README release heading must match VERSION.');
 
 foreach (['composer.json', 'package.json'] as $jsonFile) {
     $checks++;
@@ -57,9 +66,23 @@ foreach ($manifestFiles as $path) {
 foreach (glob($root.'/plugins/builtin/*/enverif.json') ?: [] as $path) {
     $checks++;
     $data = json_decode((string) file_get_contents($path), true);
+    $directory = dirname($path);
     if (($data['developer'] ?? null) !== 'Codefreex') {
         $fail('First-party plugin developer must be Codefreex: '.str_replace($root.'/', '', $path));
     }
+    if (($data['developer_url'] ?? null) !== 'https://codefreex.com/') {
+        $fail('First-party plugin developer_url must point to Codefreex: '.str_replace($root.'/', '', $path));
+    }
+    $icon = (string) ($data['icon'] ?? '');
+    if ($icon === '' || str_contains($icon, '..') || !is_file($directory.'/'.$icon)) {
+        $fail('First-party plugin must ship its declared local icon: '.str_replace($root.'/', '', $path));
+    }
+}
+
+$checks++;
+$ciWorkflow = (string) file_get_contents($root.'/.github/workflows/ci.yml');
+if (!str_contains($ciWorkflow, 'installer-http:') || !str_contains($ciWorkflow, './scripts/ci-installer-smoke.sh')) {
+    $fail('CI must exercise the fresh HTTP installer, login and authenticated core screens.');
 }
 
 $checks++;
@@ -163,6 +186,28 @@ foreach ($sourceFiles as $path) {
     if (str_ends_with($path, '.blade.php') && preg_match('/\{\{(?:(?!\}\}).)*\{\{/s', $text)) {
         $fail('Possible malformed nested Blade expression: '.str_replace($root.'/', '', $path));
     }
+    if (str_ends_with($path, '.blade.php')) {
+        $relative = str_replace($root.'/', '', $path);
+        if (str_contains($text, '@json(')) {
+            $fail('Blade templates must pre-serialize JSON instead of using the brittle @json directive: '.$relative);
+        }
+        $pairs = [
+            'if' => ['/@if\s*\(/', '/@endif\b/'],
+            'unless' => ['/@unless\s*\(/', '/@endunless\b/'],
+            'foreach' => ['/@foreach\s*\(/', '/@endforeach\b/'],
+            'forelse' => ['/@forelse\s*\(/', '/@endforelse\b/'],
+            'for' => ['/@for\s*\(/', '/@endfor\b/'],
+            'while' => ['/@while\s*\(/', '/@endwhile\b/'],
+            'switch' => ['/@switch\s*\(/', '/@endswitch\b/'],
+        ];
+        foreach ($pairs as $directive => [$openPattern, $closePattern]) {
+            $opens = preg_match_all($openPattern, $text);
+            $closes = preg_match_all($closePattern, $text);
+            if ($opens !== $closes) {
+                $fail("Unbalanced Blade @{$directive} directives in {$relative}: {$opens} open / {$closes} close.");
+            }
+        }
+    }
 }
 $checks++;
 $undefined = array_values(array_diff(array_unique($usedTranslationKeys), $englishKeys));
@@ -209,6 +254,75 @@ if (is_file($root.'/resources/css/app.css') && is_file($root.'/public/assets/app
     if (hash_file('sha256', $root.'/resources/css/app.css') !== hash_file('sha256', $root.'/public/assets/app.css')) {
         $fail('resources/css/app.css and public/assets/app.css are not synchronized.');
     }
+}
+
+
+$checks++;
+$layout = (string) file_get_contents($root.'/resources/views/layouts/app.blade.php');
+if (str_contains($layout, '<small>by Codefreex</small>') || str_contains($layout, 'Docs · by Codefreex') || str_contains($layout, 'BY CODEFREEX') || str_contains($layout, 'Enverif by Codefreex')) {
+    $fail('Product brand lockups must display Enverif without a Codefreex sublabel.');
+}
+foreach (['assets/app.css', 'assets/app.js'] as $asset) {
+    if (!str_contains($layout, "asset('{$asset}') }}?v=")) $fail("Application asset is missing release cache-busting: {$asset}");
+}
+
+$checks++;
+$appCss = (string) file_get_contents($root.'/resources/css/app.css');
+if (str_contains($appCss, '.agentic-main{margin-left:260px')) $fail('Desktop agentic shell still double-offsets the fixed sidebar.');
+if (!str_contains($appCss, '.agentic-main{margin-left:0')) $fail('Desktop agentic shell must neutralize main-content sidebar margin.');
+
+$checks++;
+$chatJs = (string) file_get_contents($root.'/resources/js/app.js');
+$chatController = (string) file_get_contents($root.'/app/Http/Controllers/ChatController.php');
+foreach (["event.preventDefault()", "Accept: 'application/json'", 'history.replaceState', 'data.transcript_html'] as $needle) {
+    if (!str_contains($chatJs, $needle)) $fail("Chat async transport missing: {$needle}");
+}
+if (str_contains($chatJs, 'window.location.assign(data.redirect_url)')) $fail('Chat submit must not navigate through a send endpoint.');
+foreach (['expectsJson()', "'thread_url'", "'send_url'", "'status_url'", "'transcript_html'"] as $needle) {
+    if (!str_contains($chatController, $needle)) $fail("Chat JSON response contract missing: {$needle}");
+}
+$routes = (string) file_get_contents($root.'/routes/web.php');
+if (str_contains($routes, '/chats/send/')) $fail('Legacy /chats/send endpoint must not be exposed.');
+
+$checks++;
+if (!is_file($root.'/app/Core/Runtime/WebQueueKick.php')) $fail('Shared-host interactive WebQueueKick is missing.');
+$queueKickTargets = [
+    'app/Http/Controllers/ChatController.php',
+    'app/Http/Controllers/AgentController.php',
+    'app/Http/Controllers/WorkflowController.php',
+    'app/Http/Controllers/WorkflowRunController.php',
+    'app/Http/Controllers/ApprovalController.php',
+    'app/Http/Controllers/WorkflowWebhookController.php',
+];
+foreach ($queueKickTargets as $target) {
+    $checks++;
+    if (!str_contains((string) file_get_contents($root.'/'.$target), '$queueKick->afterResponse()')) {
+        $fail("Interactive shared-hosting queue kick is not wired in {$target}");
+    }
+}
+
+$checks++;
+$workflowForm = (string) file_get_contents($root.'/resources/views/workflows/form.blade.php');
+if (!str_contains($workflowForm, '$workflowResourcesJson') || str_contains($workflowForm, '@json([')) {
+    $fail('Workflow form must pre-serialize builder resources without inline Blade arrays.');
+}
+
+$checks++;
+foreach (['gmail','outlook','smtp','apollo','apify','google-search-console','google-analytics','google-maps','calendly','automation-webhook'] as $slug) {
+    if (!is_file($root.'/public/assets/integrations/'.$slug.'.svg')) $fail("Missing bundled integration icon: {$slug}.svg");
+}
+
+$checks++;
+$viewsReferenced = [];
+foreach ($runtimePhp as $runtimePath) {
+    $text = (string) file_get_contents($runtimePath);
+    if (preg_match_all('/\bview\(\s*[\'"]([^\'"]+)[\'"]/', $text, $matches)) {
+        foreach ($matches[1] as $viewName) $viewsReferenced[$viewName] = true;
+    }
+}
+foreach (array_keys($viewsReferenced) as $viewName) {
+    $viewPath = $root.'/resources/views/'.str_replace('.', '/', $viewName).'.blade.php';
+    if (!is_file($viewPath)) $fail("Controller references missing Blade view: {$viewName}");
 }
 
 $docCopies = [

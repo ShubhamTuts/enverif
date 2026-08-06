@@ -1,9 +1,9 @@
 ENVERIF — SHARED HOSTING INSTALLATION
 =====================================
-Enverif by Codefreex · MIT licensed
+MIT licensed · Maintained by Codefreex
 
-This package is built for standard Apache shared hosting and contains production Composer dependencies.
-You do not need npm, Composer, Redis, Docker, Supervisor, or SSH to complete a browser installation.
+The official GitHub `*-shared-hosting.zip` release artifact is built for standard Apache shared hosting and contains real production Composer dependencies.
+You do not need npm, Composer, Redis, Docker, Supervisor, or SSH when using that artifact. If the archive you have does not contain `vendor/autoload.php`, it is a source/update archive and must not be used as a fresh no-SSH installation package.
 
 1. Upload this ZIP to your hosting account and extract it.
 2. BEST: point your domain/subdomain document root to this package's /public directory.

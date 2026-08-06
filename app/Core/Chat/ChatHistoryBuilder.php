@@ -20,8 +20,8 @@ final class ChatHistoryBuilder
         }
 
         $history = array_slice($history, -$limit);
-        while ($history && $history[0]['role'] === 'user' && count($history) > 1) {
-            // Prefer context that begins with an assistant answer when truncating a prior exchange.
+        while ($history && $history[0]['role'] === 'assistant' && count($history) > 1) {
+            // Never start truncated conversation history with an orphaned assistant answer.
             array_shift($history);
         }
         return array_values($history);

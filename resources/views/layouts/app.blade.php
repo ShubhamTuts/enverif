@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title','Enverif') · Enverif</title>
-<link rel="icon" href="{{ asset('assets/enverif-mark.svg') }}"><link rel="stylesheet" href="{{ asset('assets/app.css') }}">
+@php
+    $assetVersion = trim((string) @file_get_contents(base_path('VERSION'))) ?: 'dev';
+@endphp
+<link rel="icon" href="{{ asset('assets/enverif-mark.svg') }}?v={{ rawurlencode($assetVersion) }}">
+<link rel="stylesheet" href="{{ asset('assets/app.css') }}?v={{ rawurlencode($assetVersion) }}">
 <script>(()=>{const t=localStorage.getItem('enverif-theme')||'{{ auth()->user()->theme ?? 'system' }}';document.documentElement.dataset.theme=t==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):t})()</script>
 </head>
 <body class="@yield('body-class')">
@@ -25,12 +29,16 @@ $nav=[
 <div class="app-shell agentic-shell">
 <aside class="sidebar agentic-sidebar">
   <div class="sidebar-top">
-    <a class="brand brand-modern" href="{{ route('chat.index') }}"><img src="{{ asset('assets/enverif-mark.svg') }}" alt="Enverif"><span><strong>Enverif</strong><small>by Codefreex</small></span></a>
+    <a class="brand brand-modern" href="{{ route('chat.index') }}" aria-label="Enverif home"><img src="{{ asset('assets/enverif-mark.svg') }}?v={{ rawurlencode($assetVersion) }}" alt=""><span><strong>Enverif</strong></span></a>
     <a class="new-chat" href="{{ route('chat.index') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg><span>{{ __('ui.new_chat') }}</span><kbd>⌘ K</kbd></a>
   </div>
   <div class="sidebar-scroll">
     <div class="nav-label">{{ __('ui.chats') }}</div>
-    <form class="sidebar-chat-search" method="get" action="{{ route('chat.index') }}"><input name="q" value="{{ request('q') }}" placeholder="Search chats" aria-label="Search chats"><button aria-label="Search">⌕</button></form>
+    <form class="sidebar-chat-search" method="get" action="{{ route('chat.index') }}" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+      <input name="q" value="{{ request()->routeIs('chat.*') ? request('q') : '' }}" placeholder="Search chats" aria-label="Search chat history" autocomplete="off">
+      @if(request()->routeIs('chat.*') && request()->filled('q'))<a href="{{ route('chat.index') }}" aria-label="Clear search">×</a>@endif
+    </form>
     @if($sidebarChats->isNotEmpty())
       <nav class="chat-history-nav">@foreach(['Today','Yesterday','Previous 7 days','Older'] as $group)@if(($sidebarGroups[$group]??collect())->isNotEmpty())<div class="chat-history-group">{{ $group }}</div>@foreach($sidebarGroups[$group] as $chat)<a href="{{ route('chat.show',$chat) }}" class="{{ request()->routeIs('chat.show') && request()->route('thread')?->id===$chat->id?'active':'' }}"><span class="chat-dot"></span><span class="truncate">{{ $chat->title }}</span></a>@endforeach @endif @endforeach</nav>
       <div class="chat-history-links"><a href="{{ route('chat.index',['archived'=>1]) }}">Archived</a></div>
@@ -47,8 +55,8 @@ $nav=[
   </div>
 </aside>
 <main class="main agentic-main">
-<header class="topbar agentic-topbar"><div class="top-left"><button class="icon-btn mobile-menu" data-mobile-menu aria-label="{{ __('ui.menu') }}">☰</button><span class="crumb">@yield('crumb','Enverif')</span></div><div class="top-actions"><form method="post" action="{{ route('workspace.switch') }}">@csrf<select class="workspace-select" name="workspace_id" data-auto-submit aria-label="{{ __('ui.workspace') }}">@foreach($availableWorkspaces as $workspace)<option value="{{ $workspace->id }}" @selected($currentWorkspace->id===$workspace->id)>{{ $workspace->name }}</option>@endforeach</select></form><a class="icon-btn approval-shortcut" href="{{ route('approvals.index') }}" title="{{ __('ui.approvals') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-3 8-10V5l-8-3-8 3v7c0 7 8 10 8 10Z"/><path d="m9 12 2 2 4-5"/></svg></a><button class="icon-btn" data-theme-toggle title="{{ __('ui.theme') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg></button></div></header>
+<header class="topbar agentic-topbar"><div class="top-left"><button class="icon-btn mobile-menu" data-mobile-menu aria-label="{{ __('ui.menu') }}">☰</button><span class="crumb" data-page-crumb>@yield('crumb','Enverif')</span></div><div class="top-actions"><form method="post" action="{{ route('workspace.switch') }}">@csrf<select class="workspace-select" name="workspace_id" data-auto-submit aria-label="{{ __('ui.workspace') }}">@foreach($availableWorkspaces as $workspace)<option value="{{ $workspace->id }}" @selected($currentWorkspace->id===$workspace->id)>{{ $workspace->name }}</option>@endforeach</select></form><a class="icon-btn approval-shortcut" href="{{ route('approvals.index') }}" title="{{ __('ui.approvals') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-3 8-10V5l-8-3-8 3v7c0 7 8 10 8 10Z"/><path d="m9 12 2 2 4-5"/></svg></a><button class="icon-btn" data-theme-toggle title="{{ __('ui.theme') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg></button></div></header>
 <div class="content @yield('content-class')">@if(session('status'))<div class="notice good">✓ <span>{{ session('status') }}</span></div>@endif @if(session('error'))<div class="notice bad">! <span>{{ session('error') }}</span></div>@endif @if($errors->any())<div class="notice bad"><div><strong>{{ __('ui.fix_errors') }}</strong><ul class="error-list">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>@endif @yield('content')</div>
 </main></div>
 <div class="command-dialog"><div class="command-box"><input class="field command-input" data-command-input placeholder="{{ __('ui.jump_anything') }}"><div class="command-results">@foreach([['chat.index',__('ui.new_chat')],['agents.index',__('ui.agents')],['schedules.index',__('ui.schedules')],['leads.index',__('ui.leads')],['campaigns.index',__('ui.campaigns')],['skills.index',__('ui.skills')],['connectors.index',__('ui.plugins')],['workflows.index',__('ui.workflows')],['settings.edit',__('ui.settings')]] as [$route,$label])<a href="{{ route($route) }}" data-command-item><span>{{ $label }}</span><span class="muted">→</span></a>@endforeach</div></div></div>
-<script src="{{ asset('assets/app.js') }}" defer></script>@stack('scripts')</body></html>
+<script src="{{ asset('assets/app.js') }}?v={{ rawurlencode($assetVersion) }}" defer></script>@stack('scripts')</body></html>

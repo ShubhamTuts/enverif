@@ -15,6 +15,14 @@ The composer exposes **Keep for this chat** and **Just this message** behavior. 
 
 Fast/Standard/Deep is provider-neutral. Enverif maps effort to supported provider reasoning controls where they exist and uses bounded execution guidance where they do not. It never sends a provider parameter that the selected adapter does not support.
 
+## In-place browser transport
+
+Sending a message is an AJAX/Fetch operation from the chat composer. The browser does **not** navigate to a transport endpoint. On the first turn Enverif creates the thread, updates the address bar to the canonical thread URL with `history.replaceState`, replaces the transcript with server-rendered safe HTML and polls the durable run status in place. The composer is locked while the current run is non-terminal so duplicate turns cannot race the same thread.
+
+If JavaScript is unavailable, the normal HTML form fallback still redirects to the canonical thread URL after creating the durable run. `/chats/send` is not a public route in 1.3.
+
+In Shared/Compatibility mode, interactive sends also schedule a bounded post-response queue kick so a database-queued run can begin without waiting for the next cron minute. Cron/Web Cron remains required for unattended work.
+
 ## Searchable history
 
 The sidebar groups active chats into **Today**, **Yesterday**, **Previous 7 days** and **Older**. Search matches conversation titles/content. Threads can be renamed, archived or deleted. Archived threads remain recoverable from the history surface until explicitly deleted.

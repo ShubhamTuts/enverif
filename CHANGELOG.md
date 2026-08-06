@@ -2,6 +2,24 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.0 — 2026-08-06
+
+- Chat submissions now stay on the chat surface: Fetch transport, canonical thread URLs via History API, live server-rendered transcript replacement, polling and composer run locking; the legacy `/chats/send` endpoint is removed.
+- Shared/Compatibility interactive actions now register a bounded post-response `WebQueueKick` through the same `TickRunner` lock while cron/Web Cron remains authoritative for unattended work.
+- Conversation truncation preserves a leading user turn instead of starting model context with an orphaned assistant message.
+- Workflow definitions reject duplicate outgoing ports and require explicit `true`/`false` condition branches; runtime validation rejects agent/skill executors without an enabled model connection.
+
+- Rebuilt the desktop agentic shell to remove the duplicate sidebar offset and restore full-width content.
+- Added release-version cache busting for application CSS/JavaScript so Hostinger/LiteSpeed cannot serve stale UI assets after upgrades.
+- Reworked chat submission into an asynchronous in-place transport with validation/error rendering and direct thread navigation.
+- Polished the chat composer, history search, model/agent/effort controls, attachment picker and responsive layout.
+- Removed "by Codefreex" from the Enverif product lockup while retaining Codefreex as first-party plugin developer attribution.
+- Replaced remote favicon dependencies with bundled integration SVG assets and tightened icon sizing.
+- Fixed workflow form Blade compilation by serializing builder resources safely outside the directive parser.
+- Hardened Blade/release verification against unsafe inline JSON directives and stale generated assets.
+- Improved plugin developer hyperlinks, card alignment, accessibility and external plugin icon fallback.
+- Added regression coverage for the production UI, chat transport and workflow Blade failures.
+
 ## 1.2.1 — 2026-08-06
 
 - Fixed the authenticated chat home page failing with a Blade `unexpected token "endif"` parse error after login.

@@ -290,6 +290,7 @@ $tests['chat history builder keeps bounded alternating context'] = function (): 
         ['role'=>'user','content'=>'second'],
     ],3);
     assert($history === [
+        ['role'=>'user','content'=>'first'],
         ['role'=>'assistant','content'=>'one'],
         ['role'=>'user','content'=>'second'],
     ]);
@@ -395,6 +396,8 @@ $tests['chat composer exposes persistent defaults one shot overrides mentions an
     foreach (['persist_defaults', 'attachment', 'data-context-menu', 'default_effort', 'model_connection_id'] as $needle) {
         assert(str_contains($view, $needle));
     }
+    assert(str_contains($view, '<input type="hidden" name="persist_defaults" value="0">'));
+    assert(str_contains($view, '<input type="checkbox" name="persist_defaults" value="1" checked>'));
     $controller = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ChatController.php');
     foreach (['persist_defaults', 'ChatAttachment', "'kind' => 'final'", 'mentionSnapshots', 'resolveModelSelection'] as $needle) {
         assert(str_contains($controller, $needle));
@@ -438,8 +441,8 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
     }
 };
 
-$tests['release source reports semantic version 1.2.0'] = function (): void {
-    assert(trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION')) === '1.2.0');
+$tests['release source reports semantic version 1.3.0'] = function (): void {
+    assert(trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION')) === '1.3.0');
 };
 
 
@@ -472,6 +475,149 @@ $tests['agent runs snapshot mutable agent configuration at start'] = function ()
     assert(str_contains($orchestrator, 'data_get($run->context, \'agent_snapshot.policy\''));
     assert(str_contains($prompt, "agent_snapshot.instructions"));
     assert(str_contains($tools, "agent_snapshot.connectors"));
+};
+
+$tests['desktop agentic shell does not double offset fixed sidebar'] = function (): void {
+    $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+    assert(str_contains($css, '.agentic-main{margin-left:0'));
+    assert(!str_contains($css, '.agentic-main{margin-left:260px'));
+};
+
+$tests['application assets are cache busted by release version'] = function (): void {
+    $layout = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/layouts/app.blade.php');
+    assert(str_contains($layout, 'assetVersion'));
+    assert(str_contains($layout, "asset('assets/app.css') }}?v="));
+    assert(str_contains($layout, "asset('assets/app.js') }}?v="));
+};
+
+$tests['brand header is Enverif only'] = function (): void {
+    $layout = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/layouts/app.blade.php');
+    assert(!str_contains($layout, '<small>by Codefreex</small>'));
+};
+
+$tests['workflow builder serializes resources without inline Blade array directive'] = function (): void {
+    $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/workflows/form.blade.php');
+    assert(!str_contains($view, '@json(['));
+    assert(str_contains($view, '$workflowResourcesJson'));
+    assert(str_contains($view, 'data-resources="{{ $workflowResourcesJson }}"'));
+};
+
+$tests['chat submission stays in place and upgrades the new thread URL without a send-page navigation'] = function (): void {
+    $root = dirname(__DIR__, 2);
+    $js = (string) file_get_contents($root.'/resources/js/app.js');
+    $controller = (string) file_get_contents($root.'/app/Http/Controllers/ChatController.php');
+    $routes = (string) file_get_contents($root.'/routes/web.php');
+    assert(str_contains($js, "event.preventDefault()"));
+    assert(str_contains($js, "Accept: 'application/json'"));
+    assert(str_contains($js, 'history.replaceState'));
+    assert(!str_contains($js, 'window.location.assign(data.redirect_url)'));
+    assert(str_contains($controller, "'thread_url'"));
+    assert(str_contains($controller, "'send_url'"));
+    assert(str_contains($controller, "'status_url'"));
+    assert(str_contains($controller, "'transcript_html'"));
+    assert(str_contains($controller, 'expectsJson()'));
+    assert(!str_contains($routes, '/chats/send/'));
+};
+
+$tests['built in connector catalog uses local versioned icon assets'] = function (): void {
+    $presentation = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Plugins/PluginPresentation.php');
+    assert(!str_contains($presentation, 'google.com/s2/favicons'));
+    assert(str_contains($presentation, "assets/integrations/"));
+    foreach (['gmail','outlook','smtp','apollo','apify','google-search-console','google-analytics','google-maps','calendly','automation-webhook'] as $slug) {
+        assert(is_file(dirname(__DIR__, 2).'/public/assets/integrations/'.$slug.'.svg'));
+    }
+};
+
+$tests['plugin developer attribution is a real hyperlink'] = function (): void {
+    $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/connectors/index.blade.php');
+    assert(str_contains($view, 'class="developer-link" href="{{ $item[\'developer_url\'] }}"'));
+    assert(!str_contains($view, 'data-href='));
+};
+
+
+$tests['all Blade templates avoid the brittle inline json directive'] = function (): void {
+    $root = dirname(__DIR__, 2).'/resources/views';
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+    foreach ($iterator as $file) {
+        if (!$file->isFile() || !str_ends_with($file->getFilename(), '.blade.php')) continue;
+        $text = (string) file_get_contents($file->getPathname());
+        assert(!str_contains($text, '@json('));
+    }
+};
+
+$tests['chat agent selection carries model connection model and effort defaults'] = function (): void {
+    $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/chat/index.blade.php');
+    $js = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/app.js');
+    foreach (['data-model-connection', 'data-model=', 'data-effort'] as $needle) assert(str_contains($view, $needle));
+    foreach (['preferredConnection', 'preferredModel', 'preferredEffort'] as $needle) assert(str_contains($js, $needle));
+};
+
+$tests['chat validates active agent and model connection before queueing work'] = function (): void {
+    $controller = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ChatController.php');
+    assert(str_contains($controller, 'Create or activate an agent before sending a chat message.'));
+    assert(str_contains($controller, 'Choose or configure an enabled AI model connection before sending.'));
+};
+
+$tests['assistant chat responses render safe markdown with final provenance'] = function (): void {
+    $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/chat/_transcript.blade.php');
+    $controller = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ChatController.php');
+    assert(str_contains($view, 'Str::markdown'));
+    assert(str_contains($view, "'allow_unsafe_links' => false"));
+    assert(str_contains($view, "data_get(\$message->meta, 'agent_name')"));
+    assert(str_contains($controller, "'agent_name' => \$agent->name"));
+};
+
+$tests['product brand lockups show Enverif without a Codefreex sublabel'] = function (): void {
+    foreach ([
+        dirname(__DIR__, 2).'/resources/views/layouts/app.blade.php',
+        dirname(__DIR__, 2).'/websites/enverif.com/index.php',
+        dirname(__DIR__, 2).'/websites/docs.enverif.com/index.php',
+    ] as $path) {
+        $text = (string) file_get_contents($path);
+        assert(!str_contains($text, '<small>by Codefreex</small>'));
+        assert(!str_contains($text, 'Docs · by Codefreex'));
+    }
+};
+
+
+$tests['manual agent runs reject paused agents and agents without enabled models'] = function (): void {
+    $controller = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/AgentController.php');
+    assert(str_contains($controller, 'This agent is paused. Activate it before running.'));
+    assert(str_contains($controller, 'Configure an enabled AI model connection before running this agent.'));
+};
+
+$tests['workflow runtime validation checks agent and skill executor model readiness'] = function (): void {
+    $validator = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Workflows/WorkflowRuntimeValidator.php');
+    $engine = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Workflows/WorkflowEngine.php');
+    assert(str_contains($validator, 'model connection is missing or disabled'));
+    assert(str_contains($validator, "whereHas('modelConnection'"));
+    assert(str_contains($validator, 'skill nodes require at least one active agent with an enabled model connection'));
+    assert(str_contains($engine, "whereHas('modelConnection'"));
+};
+
+
+$tests['condition workflow nodes require explicit true and false branches'] = function (): void {
+    $validator = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Workflows/WorkflowDefinitionValidator.php');
+    assert(str_contains($validator, 'Condition node'));
+    assert(str_contains($validator, "'true'"));
+    assert(str_contains($validator, "'false'"));
+};
+
+
+
+$tests['shared hosting interactive actions schedule a bounded post-response queue kick'] = function (): void {
+    $root = dirname(__DIR__, 2);
+    $kick = (string) file_get_contents($root.'/app/Core/Runtime/WebQueueKick.php');
+    $chat = (string) file_get_contents($root.'/app/Http/Controllers/ChatController.php');
+    $agents = (string) file_get_contents($root.'/app/Http/Controllers/AgentController.php');
+    $workflows = (string) file_get_contents($root.'/app/Http/Controllers/WorkflowController.php');
+    assert(str_contains($kick, 'app()->terminating'));
+    assert(str_contains($kick, 'RuntimeProfileDetector::SHARED'));
+    assert(str_contains($kick, 'RuntimeProfileDetector::COMPATIBILITY'));
+    assert(str_contains($kick, 'TickRunner::class'));
+    assert(str_contains($chat, '$queueKick->afterResponse()'));
+    assert(str_contains($agents, '$queueKick->afterResponse()'));
+    assert(str_contains($workflows, '$queueKick->afterResponse()'));
 };
 
 $passed = 0;

@@ -19,7 +19,7 @@ final class ConnectorManager
             $meta=$this->plugins->metadata($id);
             $icon=(string)($meta['icon']??'');
             if($icon==='')$icon=PluginPresentation::iconFor($id);
-            elseif(!preg_match('#^https://#i',$icon))$icon=url('/plugin-assets/'.rawurlencode((string)($meta['slug']??$id)).'/'.rawurlencode(basename($icon)));
+            elseif(!preg_match('#^https://#i',$icon)){ $release=trim((string)@file_get_contents(base_path('VERSION')))?:'dev'; $icon=url('/plugin-assets/'.rawurlencode((string)($meta['slug']??$id)).'/'.rawurlencode(basename($icon))).'?v='.rawurlencode($release); }
             $developer=(string)($meta['developer']??(method_exists($driver,'developer')?$driver->developer():'Third-party'));
             $out[$id]=[
                 'id'=>$id,

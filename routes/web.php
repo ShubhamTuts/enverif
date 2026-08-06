@@ -18,7 +18,7 @@ Route::middleware('installed')->group(function () {
         Route::get('/', [ChatController::class, 'index'])->name('chat.index');
         Route::get('/overview', DashboardController::class)->name('dashboard');
         Route::get('/chats/{thread}', [ChatController::class, 'show'])->name('chat.show');
-        Route::post('/chats/send/{thread?}', [ChatController::class, 'send'])->name('chat.send');
+        Route::post('/chats/{thread?}', [ChatController::class, 'send'])->name('chat.send');
         Route::get('/chats/{thread}/status', [ChatController::class, 'status'])->name('chat.status');
         Route::post('/chats/{thread}/stop', [ChatController::class, 'stop'])->name('chat.stop');
         Route::put('/chats/{thread}/rename', [ChatController::class, 'rename'])->name('chat.rename');

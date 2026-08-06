@@ -6,6 +6,7 @@ use App\Core\Agents\AgentOrchestrator;
 use App\Core\Chat\ChatHistoryBuilder;
 use App\Core\Chat\ChatSelection;
 use App\Core\Models\ProviderManager;
+use App\Core\Runtime\WebQueueKick;
 use App\Models\{Agent, AgentRun, Campaign, ChatAttachment, ChatMessage, ChatThread, ConnectorConnection, Lead, ModelConnection, Skill, Workflow};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -28,9 +29,20 @@ final class ChatController extends Controller
         return view('chat.index', $this->viewData($request, $thread->fresh()));
     }
 
-    public function send(Request $request, AgentOrchestrator $orchestrator, ?ChatThread $thread = null)
+    public function send(Request $request, AgentOrchestrator $orchestrator, WebQueueKick $queueKick, ?ChatThread $thread = null)
     {
-        if ($thread) $this->authorizeThread($request, $thread);
+        if ($thread) {
+            $this->authorizeThread($request, $thread);
+            $activeRunId = (string) $thread->messages()->whereNotNull('run_id')->latest('id')->value('run_id');
+            if ($activeRunId !== '') {
+                $activeRun = AgentRun::find($activeRunId);
+                if ($activeRun && ! in_array($activeRun->status, ['completed', 'failed', 'cancelled'], true)) {
+                    throw ValidationException::withMessages([
+                        'prompt' => 'Wait for the current agent run to finish or stop it before sending another message.',
+                    ]);
+                }
+            }
+        }
 
         $data = $request->validate([
             'prompt' => 'nullable|string|max:20000',
@@ -57,7 +69,13 @@ final class ChatController extends Controller
 
         $agentId = (int) ($data['agent_id'] ?? ($thread?->default_agent_id ?: $thread?->agent_id ?: 0));
         if ($agentId <= 0) $agentId = (int) Agent::where('status', 'active')->value('id');
-        $agent = Agent::whereKey($agentId)->where('status', 'active')->firstOrFail();
+        if ($agentId <= 0) {
+            throw ValidationException::withMessages(['agent_id' => 'Create or activate an agent before sending a chat message.']);
+        }
+        $agent = Agent::whereKey($agentId)->where('status', 'active')->first();
+        if (!$agent) {
+            throw ValidationException::withMessages(['agent_id' => 'The selected agent is unavailable in this workspace.']);
+        }
 
         $selection = ChatSelection::normalize(
             (array) ($data['connector_ids'] ?? []),
@@ -76,6 +94,9 @@ final class ChatController extends Controller
         }
 
         [$connection, $model] = $this->resolveModelSelection($data, $thread, $agent);
+        if (!$connection) {
+            throw ValidationException::withMessages(['model_connection_id' => 'Choose or configure an enabled AI model connection before sending.']);
+        }
         $effort = (string) ($data['effort'] ?? $thread?->default_effort ?: $agent->default_effort ?: 'standard');
         if (!in_array($effort, ['fast', 'standard', 'deep'], true)) $effort = 'standard';
         $persistDefaults = !$thread || $request->boolean('persist_defaults', true);
@@ -113,6 +134,7 @@ final class ChatController extends Controller
             'content' => $prompt,
             'meta' => [
                 'agent_id' => $agent->id,
+                'agent_name' => $agent->name,
                 'model_connection_id' => $connection?->id,
                 'model' => $model,
                 'effort' => $effort,
@@ -149,13 +171,30 @@ final class ChatController extends Controller
 
         $runInput = $prompt !== '' ? $prompt : 'Review the attached files and respond to the operator.';
         $run = $orchestrator->start($agent, $runInput, null, $context);
+        $queueKick->afterResponse();
         $meta = (array) $userMessage->meta;
         $meta['run_id'] = $run->id;
         $meta['attachment_ids'] = array_column($attachmentContext, 'id');
         $userMessage->update(['run_id' => $run->id, 'meta' => $meta, 'status' => 'running']);
         $thread->update(['last_message_at' => now(), 'archived_at' => null]);
+        $this->syncTerminalMessages($thread);
 
-        return redirect()->route('chat.show', $thread);
+        $threadUrl = route('chat.show', $thread);
+        if ($request->expectsJson()) {
+            $thread = $thread->fresh()->load(['messages.attachments', 'defaultAgent']);
+            return response()->json([
+                'ok' => true,
+                'thread_id' => $thread->id,
+                'run_id' => $run->id,
+                'thread_url' => $threadUrl,
+                'send_url' => route('chat.send', $thread),
+                'status_url' => route('chat.status', $thread),
+                'title' => $thread->title,
+                'transcript_html' => $this->renderTranscript($request, $thread),
+            ], 202);
+        }
+
+        return redirect()->to($threadUrl);
     }
 
     public function status(Request $request, ChatThread $thread)
@@ -176,8 +215,11 @@ final class ChatController extends Controller
         $latestRunId = $thread->messages()->whereNotNull('run_id')->latest('id')->value('run_id');
         $run = $latestRunId ? AgentRun::find($latestRunId) : null;
         $latestStep = $run?->steps()->latest('sequence')->first();
+        $thread = $thread->fresh()->load(['messages.attachments', 'defaultAgent']);
         return response()->json([
             'messages' => $messages,
+            'transcript_html' => $this->renderTranscript($request, $thread),
+            'title' => $thread->title,
             'run' => $run ? [
                 'id' => $run->id,
                 'status' => $run->status,
@@ -231,6 +273,14 @@ final class ChatController extends Controller
         return redirect()->route('chat.index')->with('status', 'Chat deleted.');
     }
 
+    private function renderTranscript(Request $request, ChatThread $thread): string
+    {
+        return view('chat._transcript', [
+            'thread' => $thread,
+            'user' => $request->user(),
+        ])->render();
+    }
+
     private function syncTerminalMessages(ChatThread $thread): void
     {
         $pending = $thread->messages()->where('role', 'user')->whereNotNull('run_id')->get();
@@ -250,6 +300,7 @@ final class ChatController extends Controller
                 'meta' => [
                     'status' => $run->status,
                     'agent_id' => $run->agent_id,
+                    'agent_name' => (string) data_get($run->context, 'agent_snapshot.name', $run->agent?->name ?: 'Enverif'),
                     'execution' => data_get($run->context, 'execution'),
                     'stop_reason' => $run->stop_reason,
                 ],

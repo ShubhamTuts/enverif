@@ -3,7 +3,7 @@
 namespace App\Core\Workflows;
 
 use App\Core\Connectors\ConnectorManager;
-use App\Models\{Agent,Campaign,ConnectorConnection,Skill,Workflow};
+use App\Models\{Agent,Campaign,ConnectorConnection,ModelConnection,Skill,Workflow};
 
 final class WorkflowRuntimeValidator
 {
@@ -21,11 +21,38 @@ final class WorkflowRuntimeValidator
             try {
                 switch ($node['type']) {
                     case 'agent':
-                        if (!Agent::whereKey((int) ($config['agent_id'] ?? 0))->where('status','active')->exists()) $errors[] = "{$label}: select an active agent.";
+                        $agent = Agent::whereKey((int) ($config['agent_id'] ?? 0))->where('status','active')->first();
+                        if (!$agent) {
+                            $errors[] = "{$label}: select an active agent.";
+                            break;
+                        }
+                        if (!$agent->model_connection_id || !ModelConnection::whereKey((int) $agent->model_connection_id)->where('enabled', true)->exists()) {
+                            $errors[] = "{$label}: agent model connection is missing or disabled.";
+                        }
                         break;
                     case 'skill':
-                        if (!Skill::whereKey((int) ($config['skill_id'] ?? 0))->where('status','active')->exists()) $errors[] = "{$label}: select an active skill.";
-                        if (!empty($config['agent_id']) && !Agent::whereKey((int) $config['agent_id'])->where('status','active')->exists()) $errors[] = "{$label}: selected skill executor agent is unavailable.";
+                        $skill = Skill::whereKey((int) ($config['skill_id'] ?? 0))
+                            ->where(fn ($query) => $query->whereNull('workspace_id')->orWhere('workspace_id', $workflow->workspace_id))
+                            ->where('status', 'active')
+                            ->first();
+                        if (!$skill) $errors[] = "{$label}: select an active skill available to this workspace.";
+
+                        if (!empty($config['agent_id'])) {
+                            $executor = Agent::whereKey((int) $config['agent_id'])->where('status','active')->first();
+                            if (!$executor) {
+                                $errors[] = "{$label}: selected skill executor agent is unavailable.";
+                            } elseif (!$executor->model_connection_id || !ModelConnection::whereKey((int) $executor->model_connection_id)->where('enabled', true)->exists()) {
+                                $errors[] = "{$label}: selected skill executor agent model connection is missing or disabled.";
+                            }
+                        } else {
+                            $readyExecutor = Agent::where('status', 'active')
+                                ->whereNotNull('model_connection_id')
+                                ->whereHas('modelConnection', fn ($query) => $query->where('enabled', true))
+                                ->exists();
+                            if (!$readyExecutor) {
+                                $errors[] = "{$label}: skill nodes require at least one active agent with an enabled model connection.";
+                            }
+                        }
                         break;
                     case 'connector':
                         $connection = ConnectorConnection::whereKey((int) ($config['connection_id'] ?? 0))->where('enabled',true)->first();

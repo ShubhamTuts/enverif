@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Core\Agents\AgentOrchestrator;
 use App\Core\Models\ProviderManager;
+use App\Core\Runtime\WebQueueKick;
 use App\Models\{Agent, ConnectorConnection, ModelConnection, Skill};
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -77,10 +78,17 @@ final class AgentController extends Controller
         return redirect()->route('agents.index')->with('status', __('ui.deleted'));
     }
 
-    public function run(Request $request, Agent $agent, AgentOrchestrator $orchestrator)
+    public function run(Request $request, Agent $agent, AgentOrchestrator $orchestrator, WebQueueKick $queueKick)
     {
+        if ($agent->status !== 'active') {
+            throw ValidationException::withMessages(['agent' => 'This agent is paused. Activate it before running.']);
+        }
+        if (!$agent->model_connection_id || !ModelConnection::whereKey((int) $agent->model_connection_id)->where('enabled', true)->exists()) {
+            throw ValidationException::withMessages(['agent' => 'Configure an enabled AI model connection before running this agent.']);
+        }
         $data = $request->validate(['prompt' => 'required|string|max:20000']);
         $run = $orchestrator->start($agent, $data['prompt']);
+        $queueKick->afterResponse();
         return redirect()->route('runs.show', $run);
     }
 

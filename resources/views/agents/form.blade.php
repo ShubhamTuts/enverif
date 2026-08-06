@@ -1,13 +1,16 @@
 @extends('layouts.app')
 @section('title', $agent->exists ? __('ui.edit').' '.$agent->name : __('ui.new_agent'))
 @section('content')
+@php
+    $agentModelCatalogJson = json_encode($modelCatalog, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
+@endphp
 @php($selectedConnectionId = (string) old('model_connection_id',$agent->model_connection_id))
 @php($selectedConnection = $models->first(fn($m)=>(string)$m->id===$selectedConnectionId))
 @php($knownAgentModels = $selectedConnection ? ($modelCatalog[$selectedConnection->provider] ?? []) : [])
 @php($agentModelValue = old('model',$agent->model ?: ''))
 @php($customAgentModel = $agentModelValue !== '' && !in_array($agentModelValue,$knownAgentModels,true))
 <div class="page-head"><div><h1>{{ $agent->exists ? __('ui.edit').' '.$agent->name : __('ui.new_agent') }}</h1><p>{{ __('ui.agent_form_desc') }}</p></div><a class="btn" href="{{ $agent->exists ? route('agents.show',$agent) : route('agents.index') }}">{{ __('ui.cancel') }}</a></div>
-<form method="post" action="{{ $agent->exists ? route('agents.update',$agent) : route('agents.store') }}" class="grid grid-3" enctype="multipart/form-data" data-agent-model-catalog='@json($modelCatalog)'>@csrf @if($agent->exists) @method('PUT') @endif
+<form method="post" action="{{ $agent->exists ? route('agents.update',$agent) : route('agents.store') }}" class="grid grid-3" enctype="multipart/form-data" data-agent-model-catalog="{{ $agentModelCatalogJson }}">@csrf @if($agent->exists) @method('PUT') @endif
 <section class="card card-pad span-2"><div class="form-grid">
 <div class="form-group"><label class="form-label">{{ __('ui.name') }}</label><input class="field" name="name" value="{{ old('name',$agent->name) }}" required maxlength="120"></div><div class="form-group"><label class="form-label">Agent avatar</label><input class="field" type="file" name="avatar" accept="image/jpeg,image/png,image/webp"><div class="help">Optional JPG/PNG/WebP, max 2 MB. Used in chat and agent cards.</div>@if($agent->exists)<img class="agent-avatar-preview" src="{{ route('agents.avatar',$agent) }}" alt="{{ $agent->name }}">@endif</div>
 <div class="form-group"><label class="form-label">{{ __('ui.status') }}</label><select class="select" name="status"><option value="active" @selected(old('status',$agent->status?:'active')==='active')>{{ __('ui.active') }}</option><option value="paused" @selected(old('status',$agent->status)==='paused')>{{ __('ui.paused') }}</option></select></div>

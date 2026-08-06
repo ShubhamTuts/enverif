@@ -12,7 +12,6 @@
   <img alt="Laravel 13" src="https://img.shields.io/badge/Laravel-13-FF2D20.svg">
   <img alt="MySQL" src="https://img.shields.io/badge/MySQL-durable_state-4479A1.svg">
   <img alt="Redis optional" src="https://img.shields.io/badge/Redis-optional-DC382D.svg">
-  <img alt="Built by Codefreex" src="https://img.shields.io/badge/by-Codefreex-5B5CF0.svg">
 </p>
 
 <p align="center">
@@ -45,11 +44,13 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
-## Enverif 1.2.0
+## Enverif 1.3.0
 
-The 1.2 release makes the conversation the durable operating surface rather than a thin launcher. A thread remembers its agent/model/effort defaults, each message can override them, attachments stay private, final answers record the exact run/model/tool context, and agent/workflow execution snapshots mutable configuration so an edit made later cannot rewrite history.
+The 1.3 release hardens the conversation as the durable operating surface and closes the UI/runtime gaps found during real shared-hosting deployment. Chat turns submit in place without navigating to a transport endpoint, thread URLs are updated with browser history, controls are consistently styled, assets are release-versioned to defeat stale LiteSpeed/browser caches, and the desktop shell no longer applies a duplicate sidebar offset.
 
-The release also fixes the Laravel 13 UUID/workspace binding collision and the shared-hosting installer/root-routing defects discovered during real Hostinger deployment testing. See the [1.2 product requirements](docs/PRODUCT-REQUIREMENTS.md) and [changelog](CHANGELOG.md).
+Agent and workflow execution remain durable and snapshot mutable configuration. Interactive requests in Shared/Compatibility mode can opportunistically drain a bounded queue slice after the HTTP response while the once-per-minute cron/Web Cron remains authoritative for schedules and delayed work. Workflow validation now requires explicit condition branches and model-ready agent/skill executors.
+
+The release also retains the Laravel 13 UUID/workspace binding, installer recovery, workspace pivot, and shared-hosting root-routing fixes discovered during real Hostinger deployment testing. See the [product requirements](docs/PRODUCT-REQUIREMENTS.md) and [changelog](CHANGELOG.md).
 
 ## What ships
 
@@ -241,7 +242,7 @@ CI additionally runs MySQL and both Redis/database-runtime paths.
 
 ## Attribution
 
-**Enverif is by Codefreex.** First-party Enverif plugins use `developer: Codefreex`. Third-party plugins must retain their real author/developer attribution.
+**Enverif is maintained by Codefreex.** First-party Enverif plugins use `developer: Codefreex`. Third-party plugins must retain their real author/developer attribution.
 
 ## License
 

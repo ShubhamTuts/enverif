@@ -85,13 +85,13 @@
 @if(in_array($run->status, $activeStatuses, true))
 <script>
 const runCopy = {
-    approval: @json(__('ui.approval_paused')),
-    delegated: @json(__('ui.waiting_delegated_agent')),
-    working: @json(__('ui.agent_working')),
+    approval: {{ \Illuminate\Support\Js::from(__('ui.approval_paused')) }},
+    delegated: {{ \Illuminate\Support\Js::from(__('ui.waiting_delegated_agent')) }},
+    working: {{ \Illuminate\Support\Js::from(__('ui.agent_working')) }},
 };
 setInterval(async () => {
     try {
-        const response = await fetch(@json(route('runs.status', $run)), {headers: {'Accept': 'application/json'}});
+        const response = await fetch({{ \Illuminate\Support\Js::from(route('runs.status', $run)) }}, {headers: {'Accept': 'application/json'}});
         if (!response.ok) return;
         const data = await response.json();
         document.getElementById('run-state').textContent = data.status;

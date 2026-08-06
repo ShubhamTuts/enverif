@@ -1,12 +1,15 @@
 @extends('layouts.app')
 @section('title', ($connection->exists?__('ui.edit'):__('ui.connect')).' '.ucfirst($provider->id()))
 @section('content')
+@php
+    $modelCatalogJson = json_encode($catalog, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
+@endphp
 @php($selectedProvider = old('provider',$connection->provider ?: $provider->id()))
 @php($selectedModelValue = old('default_model',$connection->default_model ?: ($catalog[$selectedProvider][0] ?? '')))
 @php($knownSelectedModels = $catalog[$selectedProvider] ?? [])
 @php($customSelectedModel = $selectedModelValue !== '' && !in_array($selectedModelValue,$knownSelectedModels,true))
 <div class="page-head"><div><h1>{{ $connection->exists ? __('ui.edit').' '.$connection->name : __('ui.connect').' AI model' }}</h1><p>{{ __('ui.model_form_desc') }}</p></div><a class="btn" href="{{ route('models.index') }}">{{ __('ui.cancel') }}</a></div>
-<form method="post" action="{{ $connection->exists ? route('models.update',$connection) : route('models.store') }}" class="card card-pad" data-model-catalog='@json($catalog)'>@csrf @if($connection->exists)@method('PUT')@endif
+<form method="post" action="{{ $connection->exists ? route('models.update',$connection) : route('models.store') }}" class="card card-pad" data-model-catalog="{{ $modelCatalogJson }}">@csrf @if($connection->exists)@method('PUT')@endif
 <div class="form-grid">
 <div class="form-group"><label class="form-label">{{ __('ui.name') }}</label><input class="field" name="name" value="{{ old('name',$connection->name ?: ucfirst($selectedProvider ?: 'OpenAI')) }}" required></div>
 <div class="form-group"><label class="form-label">{{ __('ui.provider') }}</label><select class="select" name="provider" data-model-provider required>@foreach($catalog as $providerId=>$models)<option value="{{ $providerId }}" @selected($selectedProvider===$providerId)>{{ $providerId==='anthropic'?'Anthropic Claude':($providerId==='gemini'?'Google Gemini':ucfirst($providerId)) }}</option>@endforeach</select></div>

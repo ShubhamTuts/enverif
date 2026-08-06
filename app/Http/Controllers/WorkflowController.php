@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Core\Workflows\{WorkflowDefinitionValidator,WorkflowEngine,WorkflowRuntimeValidator};
 use App\Core\Connectors\ConnectorManager;
+use App\Core\Runtime\WebQueueKick;
 use App\Models\{Agent,Campaign,ConnectorConnection,Skill,Workflow};
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -19,8 +20,8 @@ final class WorkflowController extends Controller
     public function edit(Workflow $workflow){return view('workflows.form',$this->formData($workflow));}
     public function update(Request $request,Workflow $workflow){$data=$this->data($request);$data['version']=$workflow->version+1;$workflow->update($data);$this->assertActivation($workflow);return redirect()->route('workflows.show',$workflow)->with('status','Workflow updated.');}
     public function destroy(Workflow $workflow){$workflow->delete();return redirect()->route('workflows.index')->with('status',__('ui.deleted'));}
-    public function run(Request $request,Workflow $workflow,WorkflowEngine $engine){$this->runtimeValidator->assertExecutable($workflow);$input=$this->runInput($request);$run=$engine->start($workflow,'manual',$input,'execute');return redirect()->route('workflow-runs.show',$run);}
-    public function test(Request $request,Workflow $workflow,WorkflowEngine $engine){$this->runtimeValidator->assertExecutable($workflow);$input=$this->runInput($request);$run=$engine->start($workflow,'manual',$input,'dry_run');return redirect()->route('workflow-runs.show',$run)->with('status','Dry run started. External effects are simulated.');}
+    public function run(Request $request,Workflow $workflow,WorkflowEngine $engine,WebQueueKick $queueKick){$this->runtimeValidator->assertExecutable($workflow);$input=$this->runInput($request);$run=$engine->start($workflow,'manual',$input,'execute');$queueKick->afterResponse();return redirect()->route('workflow-runs.show',$run);}
+    public function test(Request $request,Workflow $workflow,WorkflowEngine $engine,WebQueueKick $queueKick){$this->runtimeValidator->assertExecutable($workflow);$input=$this->runInput($request);$run=$engine->start($workflow,'manual',$input,'dry_run');$queueKick->afterResponse();return redirect()->route('workflow-runs.show',$run)->with('status','Dry run started. External effects are simulated.');}
     public function regenerateWebhook(Workflow $workflow){$workflow->update(['webhook_secret'=>Str::random(48)]);return back()->with('status','Webhook secret regenerated.');}
 
     private function data(Request $request):array

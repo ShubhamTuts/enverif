@@ -6,7 +6,11 @@ Enverif is durable-first: MySQL stores authoritative agent/workflow state, while
 
 `enverif:tick` uses a distributed cache lock, dispatches due schedules, drains `agents,default` queues within `ENVERIF_TICK_BUDGET`, stores a heartbeat, releases its lock and exits. Starting it concurrently is safe; only the lock owner processes a tick.
 
-When a scheduler heartbeat is stale, recurring work and delayed workflow continuation should be considered unavailable until the cron/worker is restored. Manual browser requests must not be used as a substitute for background execution.
+When a scheduler heartbeat is stale, recurring work and delayed workflow continuation should be considered unavailable until the cron/worker is restored. Manual browser requests do not replace background execution.
+
+## Interactive post-response progress
+
+In Shared/Compatibility mode, user-triggered chat, agent, workflow, approval and webhook actions may register `WebQueueKick` after the response. Laravel runs the callback only after the response is sent, then Enverif calls the same locked `TickRunner` with a bounded budget (`ENVERIF_WEB_KICK_BUDGET`, default 20 seconds). This reduces perceived latency for interactive database-queued work while preserving cron/Web Cron as the authoritative unattended scheduler. The kick is disabled for sync queues, CLI execution and Performance mode.
 
 ## Web Cron in Compatibility Mode
 

@@ -97,7 +97,7 @@ final class WorkflowEngine
 
     private function executeAgent(WorkflowRun $run,WorkflowRunStep $step,array $config):bool
     {
-        $agent=Agent::whereKey((int)($config['agent_id']??0))->where('status','active')->firstOrFail();
+        $agent=Agent::whereKey((int)($config['agent_id']??0))->where('status','active')->whereNotNull('model_connection_id')->whereHas('modelConnection',fn($query)=>$query->where('enabled',true))->firstOrFail();
         $prompt=trim((string)($config['prompt']??data_get($run->context,'previous.prompt',data_get($run->input,'prompt',''))));
         if($prompt==='')$prompt='Continue this revenue workflow using the workflow context: '.json_encode($run->context,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
         $child=$this->agents->start($agent,$prompt,null,['workflow_run_id'=>$run->id,'workflow_node_id'=>$step->node_id]);
@@ -152,8 +152,8 @@ final class WorkflowEngine
     {
         $skill=Skill::whereKey((int)($config['skill_id']??0))->where(fn($q)=>$q->whereNull('workspace_id')->orWhere('workspace_id',$run->workspace_id))->where('status','active')->firstOrFail();
         $agentId=(int)($config['agent_id']??0);
-        $agent=$agentId>0?Agent::whereKey($agentId)->where('status','active')->first():Agent::where('status','active')->first();
-        if(!$agent)throw new \RuntimeException('Skill workflow nodes require at least one active agent.');
+        $agent=$agentId>0?Agent::whereKey($agentId)->where('status','active')->whereNotNull('model_connection_id')->whereHas('modelConnection',fn($query)=>$query->where('enabled',true))->first():Agent::where('status','active')->whereNotNull('model_connection_id')->whereHas('modelConnection',fn($query)=>$query->where('enabled',true))->first();
+        if(!$agent)throw new \RuntimeException('Skill workflow nodes require an active agent with an enabled model connection.');
         $prompt=trim((string)($config['prompt']??data_get($run->input,'prompt','')));
         if($prompt==='')$prompt='Apply the selected skill to the current workflow context and return the actionable result.';
         $child=$this->agents->start($agent,$prompt,null,[

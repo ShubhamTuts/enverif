@@ -51,6 +51,23 @@ final class WorkflowDefinitionValidator
             $normalizedEdges[] = ['from'=>$from,'to'=>$to,'port'=>$port];
             $graph[$from][] = $to;
         }
+        $outgoing = [];
+        foreach ($normalizedEdges as $edge) {
+            $key = $edge['from'].':'.$edge['port'];
+            if (isset($outgoing[$key])) {
+                throw new \InvalidArgumentException('Workflow node '.$edge['from'].' has more than one '.$edge['port'].' connection.');
+            }
+            $outgoing[$key] = $edge['to'];
+        }
+        foreach ($normalized as $node) {
+            if ($node['type'] !== 'condition') continue;
+            foreach (['true', 'false'] as $branch) {
+                if (!isset($outgoing[$node['id'].':'.$branch])) {
+                    throw new \InvalidArgumentException('Condition node '.$node['id'].' requires an explicit '.$branch.' branch.');
+                }
+            }
+        }
+
         self::assertAcyclic($graph);
         return ['nodes'=>$normalized,'edges'=>$normalizedEdges];
     }

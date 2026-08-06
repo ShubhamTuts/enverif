@@ -15,5 +15,5 @@
   "homepage": "https://apify.com/",
   "docs_url": "https://docs.apify.com/",
   "category": "Prospecting & scraping",
-  "icon": "https://www.google.com/s2/favicons?domain=apify.com&sz=128"
+  "icon": "icon.svg"
 }

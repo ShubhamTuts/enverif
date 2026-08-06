@@ -15,5 +15,5 @@
   "homepage": "https://en.wikipedia.org/wiki/Simple_Mail_Transfer_Protocol",
   "docs_url": "https://www.rfc-editor.org/rfc/rfc5321",
   "category": "Email",
-  "icon": "https://www.google.com/s2/favicons?domain=smtp.com&sz=128"
+  "icon": "icon.svg"
 }

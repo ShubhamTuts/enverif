@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Existing semantic version tag to verify/build (for example v1.2.0)'
+        description: 'Existing semantic version tag to verify/build (for example v1.3.0)'
         required: true
         type: string
 
@@ -189,4 +189,4 @@ jobs:
             --target "$TAG" \
             --title "Enverif $TAG" \
             --generate-notes \
-            --notes "Enverif by Codefreex. Source, deterministic no-SSH shared-hosting package and standalone website/docs artifacts."
+            --notes "Enverif. Source, deterministic no-SSH shared-hosting package and standalone website/docs artifacts. Maintained by Codefreex."

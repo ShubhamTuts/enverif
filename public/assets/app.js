@@ -481,6 +481,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
 (() => {
     const shell = document.querySelector('[data-chat-shell]');
     if (!shell) return;
+
     const form = shell.querySelector('[data-chat-form]');
     const prompt = shell.querySelector('[data-chat-prompt]');
     const menu = shell.querySelector('[data-context-menu]');
@@ -490,20 +491,60 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     const scroll = shell.querySelector('[data-chat-scroll]');
     const connectionSelect = shell.querySelector('[data-chat-model-connection]');
     const modelSelect = shell.querySelector('[data-chat-model]');
+    const effortSelect = shell.querySelector('[data-chat-effort]');
     const customWrap = shell.querySelector('[data-chat-custom-model-wrap]');
     const customInput = shell.querySelector('[data-chat-custom-model]');
     const agentSelect = shell.querySelector('[data-chat-agent]');
     const attachments = shell.querySelector('[data-chat-attachments]');
     const attachmentPreview = shell.querySelector('[data-attachment-preview]');
-    const stage = shell.querySelector('[data-chat-stage]');
+    const send = form?.querySelector('.send-button');
+    const errorBox = form?.querySelector('[data-chat-error]');
+
     let modelCatalog = {};
     try { modelCatalog = JSON.parse(shell.dataset.modelCatalog || '{}'); } catch (_) {}
+
+    let statusUrl = shell.dataset.statusUrl || '';
+    let pollTimer = null;
+    let busy = false;
 
     const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
     const resize = () => {
         if (!prompt) return;
         prompt.style.height = 'auto';
         prompt.style.height = `${Math.min(prompt.scrollHeight, 200)}px`;
+    };
+    const scrollToBottom = () => requestAnimationFrame(() => {
+        if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    });
+    const setBusy = (value) => {
+        busy = value;
+        form?.classList.toggle('is-sending', value);
+        if (send) {
+            send.disabled = value || send.dataset.preflightDisabled === '1';
+            if (value) send.setAttribute('aria-busy', 'true');
+            else send.removeAttribute('aria-busy');
+        }
+    };
+    const showError = (message = '') => {
+        if (!errorBox) return;
+        errorBox.textContent = message;
+        errorBox.hidden = message === '';
+    };
+    const updateDocumentTitle = (title) => {
+        if (!title) return;
+        document.title = `${title} · Enverif`;
+        const crumb = document.querySelector('[data-page-crumb]');
+        if (crumb) crumb.textContent = title;
+    };
+    const renderTranscript = (html) => {
+        if (!scroll || typeof html !== 'string' || html.trim() === '') return;
+        let live = scroll.querySelector('[data-chat-live-region]');
+        if (!live) {
+            scroll.innerHTML = '<div data-chat-live-region></div>';
+            live = scroll.querySelector('[data-chat-live-region]');
+        }
+        live.innerHTML = html;
+        scrollToBottom();
     };
     const filterContext = (query = '') => {
         const normalized = query.trim().toLowerCase().replace(/^@/, '');
@@ -523,29 +564,75 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         }).join('') + (chosen.length > 8 ? `<span class="context-pill">+${chosen.length - 8}</span>` : '');
     };
     const selectedConnection = () => connectionSelect?.selectedOptions?.[0];
-    const refreshModelOptions = (keepCurrent = true) => {
-        if (!modelSelect) return;
-        const previous = keepCurrent ? modelSelect.value : '';
-        const provider = selectedConnection()?.dataset.provider || '';
-        const models = modelCatalog[provider] || [];
-        modelSelect.innerHTML = '<option value="">Connection default</option>' + models.map((id) => `<option value="${escape(id)}">${escape(id)}</option>`).join('') + '<option value="__custom__">Custom model…</option>';
-        if ([...modelSelect.options].some((option) => option.value === previous)) modelSelect.value = previous;
-        if (previous && ![...modelSelect.options].some((option) => option.value === previous)) {
-            modelSelect.value = '__custom__';
-            if (customInput) customInput.value = previous;
-        }
-        toggleCustomModel();
-    };
     const toggleCustomModel = () => {
         if (!customWrap || !modelSelect) return;
         const custom = modelSelect.value === '__custom__';
         customWrap.hidden = !custom;
         if (customInput) customInput.required = custom;
     };
+    const refreshModelOptions = (keepCurrent = true) => {
+        if (!modelSelect) return;
+        const previous = keepCurrent ? modelSelect.value : '';
+        const provider = selectedConnection()?.dataset.provider || '';
+        const models = modelCatalog[provider] || [];
+        modelSelect.innerHTML = '<option value="">Connection default</option>'
+            + models.map((id) => `<option value="${escape(id)}">${escape(id)}</option>`).join('')
+            + '<option value="__custom__">Custom model…</option>';
+        if ([...modelSelect.options].some((option) => option.value === previous)) {
+            modelSelect.value = previous;
+        } else if (previous) {
+            modelSelect.value = '__custom__';
+            if (customInput) customInput.value = previous;
+        }
+        toggleCustomModel();
+    };
     const previewAttachments = () => {
         if (!attachmentPreview || !attachments) return;
         const files = [...attachments.files];
         attachmentPreview.innerHTML = files.map((file) => `<span class="attachment-chip"><b>${escape(file.name)}</b><small>${Math.max(0.1, file.size / 1024).toFixed(1)} KB</small></span>`).join('');
+    };
+    const clearTurnInputs = () => {
+        if (prompt) prompt.value = '';
+        if (attachments) attachments.value = '';
+        form?.querySelectorAll('.context-option input[type="checkbox"]').forEach((input) => { input.checked = false; });
+        if (search) search.value = '';
+        if (menu) menu.hidden = true;
+        previewAttachments();
+        refreshPills();
+        resize();
+    };
+    const terminal = (status) => ['completed', 'failed', 'cancelled'].includes(status || '');
+    const applyStatus = (data) => {
+        if (data?.transcript_html) renderTranscript(data.transcript_html);
+        if (data?.title) updateDocumentTitle(data.title);
+        const stage = shell.querySelector('[data-chat-stage]');
+        if (stage && data?.run?.stage) stage.textContent = data.run.stage;
+    };
+    const schedulePoll = (delay = 1600) => {
+        if (!statusUrl) return;
+        if (pollTimer) window.clearTimeout(pollTimer);
+        pollTimer = window.setTimeout(poll, delay);
+    };
+    const poll = async () => {
+        if (!statusUrl) return;
+        try {
+            const response = await fetch(statusUrl, {
+                headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (response.ok) {
+                const data = await response.json();
+                applyStatus(data);
+                if (!data.run || terminal(data.run.status)) {
+                    setBusy(false);
+                    return;
+                }
+            }
+        } catch (_) {
+            // Keep polling transient network/server errors. The durable run remains authoritative.
+        }
+        schedulePoll(1800);
     };
 
     prompt?.addEventListener('input', () => {
@@ -558,62 +645,127 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         }
     });
     prompt?.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && menu && !menu.hidden) { menu.hidden = true; return; }
+        if (event.key === 'Escape' && menu && !menu.hidden) {
+            menu.hidden = true;
+            return;
+        }
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
-            if (form?.reportValidity()) form.requestSubmit();
+            if (!busy && form?.reportValidity()) form.requestSubmit();
         }
     });
     toggle?.addEventListener('click', () => {
+        if (!menu) return;
         menu.hidden = !menu.hidden;
-        if (!menu.hidden) { filterContext(search?.value || ''); setTimeout(() => search?.focus(), 20); }
+        if (!menu.hidden) {
+            filterContext(search?.value || '');
+            window.setTimeout(() => search?.focus(), 20);
+        }
     });
     document.addEventListener('click', (event) => {
-        if (menu && !menu.hidden && !menu.contains(event.target) && !toggle?.contains(event.target) && event.target !== prompt) menu.hidden = true;
+        if (menu && !menu.hidden && !menu.contains(event.target) && !toggle?.contains(event.target) && event.target !== prompt) {
+            menu.hidden = true;
+        }
     });
     shell.querySelectorAll('.context-option input').forEach((input) => input.addEventListener('change', () => {
         const option = input.closest('.context-option');
-        if (option?.dataset.contextType === 'agent' && input.checked && agentSelect) agentSelect.value = input.value;
+        if (option?.dataset.contextType === 'agent' && input.checked && agentSelect) {
+            agentSelect.value = input.value;
+            agentSelect.dispatchEvent(new Event('change'));
+        }
         refreshPills();
     }));
     agentSelect?.addEventListener('change', () => {
         const radio = form?.querySelector(`[data-agent-context][value="${CSS.escape(agentSelect.value)}"]`);
         if (radio) radio.checked = true;
+
+        const option = agentSelect.selectedOptions?.[0];
+        const preferredConnection = option?.dataset.modelConnection || '';
+        const preferredModel = option?.dataset.model || '';
+        const preferredEffort = option?.dataset.effort || 'standard';
+        if (connectionSelect && preferredConnection && [...connectionSelect.options].some((item) => item.value === preferredConnection)) {
+            connectionSelect.value = preferredConnection;
+        }
+        refreshModelOptions(false);
+        if (modelSelect && preferredModel) {
+            if ([...modelSelect.options].some((item) => item.value === preferredModel)) {
+                modelSelect.value = preferredModel;
+                if (customInput) customInput.value = '';
+            } else {
+                modelSelect.value = '__custom__';
+                if (customInput) customInput.value = preferredModel;
+            }
+            toggleCustomModel();
+        }
+        if (effortSelect && ['fast', 'standard', 'deep'].includes(preferredEffort)) {
+            effortSelect.value = preferredEffort;
+        }
         refreshPills();
     });
     search?.addEventListener('input', () => filterContext(search.value));
     shell.querySelectorAll('[data-suggest]').forEach((button) => button.addEventListener('click', () => {
+        if (!prompt) return;
         prompt.value = button.dataset.suggest || '';
-        resize(); prompt.focus();
+        resize();
+        prompt.focus();
     }));
     connectionSelect?.addEventListener('change', () => refreshModelOptions(false));
     modelSelect?.addEventListener('change', toggleCustomModel);
     attachments?.addEventListener('change', previewAttachments);
-    form?.addEventListener('submit', () => {
-        const send = form.querySelector('.send-button');
-        if (send) send.disabled = true;
+
+    form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (busy) return;
+
+        showError('');
+        setBusy(true);
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+            const contentType = response.headers.get('content-type') || '';
+            const data = contentType.includes('application/json') ? await response.json() : null;
+
+            if (!response.ok) {
+                const validation = data?.errors ? Object.values(data.errors).flat().join(' ') : '';
+                throw new Error(validation || data?.message || `Unable to send message (${response.status}).`);
+            }
+            if (!data?.thread_url || !data?.status_url || !data?.send_url) {
+                throw new Error('The chat response was incomplete. Refresh and try again.');
+            }
+
+            history.replaceState({threadId: data.thread_id}, '', data.thread_url);
+            shell.dataset.threadId = String(data.thread_id || '');
+            shell.dataset.statusUrl = data.status_url;
+            statusUrl = data.status_url;
+            form.action = data.send_url;
+            updateDocumentTitle(data.title);
+            if (data.transcript_html) renderTranscript(data.transcript_html);
+            clearTurnInputs();
+            schedulePoll(500);
+        } catch (error) {
+            setBusy(false);
+            showError(error instanceof Error ? error.message : 'Unable to send the message.');
+        }
     });
 
-    refreshPills(); resize(); previewAttachments(); toggleCustomModel();
-    requestAnimationFrame(() => { if (scroll) scroll.scrollTop = scroll.scrollHeight; });
+    refreshPills();
+    resize();
+    previewAttachments();
+    toggleCustomModel();
+    scrollToBottom();
 
-    if (!shell.dataset.statusUrl) return;
-    let lastCount = shell.querySelectorAll('[data-message-id]').length;
-    const poll = async () => {
-        try {
-            const response = await fetch(shell.dataset.statusUrl, {headers: {Accept: 'application/json'}});
-            if (response.ok) {
-                const data = await response.json();
-                const count = data.messages?.length || 0;
-                if (stage && data.run?.stage) stage.textContent = data.run.stage;
-                if (count !== lastCount || ['completed', 'failed', 'cancelled'].includes(data.run?.status)) {
-                    location.reload(); return;
-                }
-            }
-        } catch (_) {}
-        setTimeout(poll, 2200);
-    };
-    setTimeout(poll, 1200);
+    if (statusUrl && shell.querySelector('[data-chat-thinking]')) {
+        setBusy(true);
+        schedulePoll(800);
+    }
 })();
 // Schedule target switcher.
 (() => {

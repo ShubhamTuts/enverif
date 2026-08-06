@@ -6,6 +6,7 @@ return [
     'runtime' => [
         'mode' => env('ENVERIF_RUNTIME_MODE', 'shared'),
         'tick_budget' => (int) env('ENVERIF_TICK_BUDGET', 45),
+        'web_kick_budget' => (int) env('ENVERIF_WEB_KICK_BUDGET', 20),
         'web_cron' => [
             'enabled' => filter_var(env('ENVERIF_WEB_CRON_ENABLED', false), FILTER_VALIDATE_BOOL),
             'secret' => env('ENVERIF_WEB_CRON_SECRET', ''),

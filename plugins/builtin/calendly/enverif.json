@@ -15,5 +15,5 @@
   "homepage": "https://calendly.com/",
   "docs_url": "https://developer.calendly.com/",
   "category": "Scheduling",
-  "icon": "https://www.google.com/s2/favicons?domain=calendly.com&sz=128"
+  "icon": "icon.svg"
 }

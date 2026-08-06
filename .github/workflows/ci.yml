@@ -122,6 +122,41 @@ jobs:
       - name: Route boot check
         run: php artisan route:list --except-vendor
 
+  installer-http:
+    name: Fresh installer · login · core HTTP screens
+    runs-on: ubuntu-latest
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: enverif_installer_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      ENVERIF_INSTALLER_SMOKE_URL: http://127.0.0.1:8013
+      ENVERIF_INSTALLER_SMOKE_PORT: 8013
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: enverif_installer_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip, :redis
+          coverage: none
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Exercise browser installer and authenticated core screens
+        run: ./scripts/ci-installer-smoke.sh
+
   frontend-and-pages:
     name: Frontend · docs · GitHub Pages
     runs-on: ubuntu-latest

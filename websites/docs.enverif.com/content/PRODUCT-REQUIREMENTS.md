@@ -1,7 +1,12 @@
 # Enverif Product Requirements Document
 
-**Product:** Enverif by Codefreex  
-**Target release:** 1.2.0  
+**Product:** Enverif
+**Maintainer:** Codefreex
+**Target release:** 1.3.0
+
+### 1.3 production-hardening addendum
+
+The approved 1.2 architecture remains the product contract. Version 1.3 is the production-hardening release that makes the contract reliable on real shared hosting: in-place chat transport, versioned frontend assets, corrected desktop shell geometry, bounded post-response queue progress for interactive work, explicit workflow condition branches, model-readiness validation, deterministic local integration icons, and framework-level HTTP smoke coverage for every primary authenticated screen. The main product lockup is **Enverif**; Codefreex is the maintainer and first-party plugin developer, not a product-name suffix.
 **Status:** Approved product architecture (Approach A) / implementation contract  
 **License:** MIT  
 **Primary stack:** Laravel 13, PHP 8.3+, MySQL, database queue/cache or Redis, Blade + Vite  
@@ -29,7 +34,7 @@ The product is not a thin chat wrapper. Chat is the command surface over a durab
 
 ## 3. Current-source audit and release blockers
 
-The 1.1.2 source is not a production-complete baseline. The following findings are release blockers and must be corrected before 1.2.0.
+The 1.1.2 source is not a production-complete baseline. The following findings are release blockers and must be corrected before 1.3.0.
 
 ### 3.1 Fatal UUID/workspace route-binding collision
 
@@ -37,15 +42,16 @@ The 1.1.2 source is not a production-complete baseline. The following findings a
 
 Required resolution:
 
-- Introduce one explicit composite UUID/workspace binding concern or model-level method that preserves Laravel UUID validation and applies workspace scoping.
-- No model may directly combine conflicting route-binding trait implementations.
-- Add a static scan preventing future conflicting trait combinations.
-- Add HTTP route tests for `/agents`, `/runs/{uuid}`, `/workflows`, and `/workflow-runs/{uuid}`.
-- `php artisan route:list` and application boot must be release gates.
+- `BelongsToWorkspace` is limited to workspace global and creating scopes; it must not implement `resolveRouteBindingQuery()`.
+- Laravel's `HasUuids` / `HasUniqueStringIds` remains the sole UUID route-binding validator on UUID-backed models.
+- Workspace isolation is applied by the global Eloquent scope, so UUID validation and workspace boundaries compose without competing trait methods.
+- Add a static scan preventing any workspace concern from redefining `resolveRouteBindingQuery()` while UUID concerns are in use.
+- Add HTTP route tests for `/agents`, `/runs/{uuid}`, `/workflows`, and `/workflow-runs/{uuid}` including invalid UUID and cross-workspace cases.
+- `php artisan route:list`, model boot, and protected-route HTTP smoke tests are release gates.
 
 ### 3.2 Installer and deployment recovery
 
-Past failures exposed session-table bootstrap order, workspace pivot naming, incomplete-install recovery, stale installed markers, and root Apache routing. 1.2.0 treats these as one installer state machine, not unrelated patches.
+Past failures exposed session-table bootstrap order, workspace pivot naming, incomplete-install recovery, stale installed markers, and root Apache routing. 1.3.0 treats these as one installer state machine, not unrelated patches.
 
 Required states:
 
@@ -67,7 +73,7 @@ The visual editor persists nodes and edges, but runtime diagnosis is limited. `s
 
 ### 3.6 Release automation is fragmented
 
-Multiple release/publish workflows overlap, one workflow has a hard-coded release version, and lockfile generation can write directly to `main`. 1.2.0 uses one deterministic release path tied to the repository `VERSION` file and successful integration CI.
+Multiple release/publish workflows overlap, one workflow has a hard-coded release version, and lockfile generation can write directly to `main`. 1.3.0 uses one deterministic release path tied to the repository `VERSION` file and successful integration CI.
 
 ## 4. Primary users
 
@@ -972,9 +978,9 @@ No workflow hard-codes an unrelated version. Dependency lockfile changes are rev
 5. Preview icon/metadata in catalog.
 6. Submit PR using documented checklist.
 
-## 27. Definition of done for Enverif 1.2.0
+## 27. Definition of done for Enverif 1.3.0
 
-Enverif 1.2.0 is complete only when all of the following are true:
+Enverif 1.3.0 is complete only when all of the following are true:
 
 - Fatal trait collisions are impossible and regression-tested.
 - Installer completes from empty DB and recovers partial/stale states.

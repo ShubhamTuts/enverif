@@ -17,5 +17,5 @@
   "homepage": "https://outlook.com/",
   "docs_url": "https://learn.microsoft.com/graph/api/resources/mail-api-overview",
   "category": "Email",
-  "icon": "https://www.google.com/s2/favicons?domain=outlook.com&sz=128"
+  "icon": "icon.svg"
 }

@@ -17,5 +17,5 @@
   "homepage": "https://mail.google.com/",
   "docs_url": "https://developers.google.com/gmail/api",
   "category": "Email",
-  "icon": "https://www.google.com/s2/favicons?domain=mail.google.com&sz=128"
+  "icon": "icon.svg"
 }

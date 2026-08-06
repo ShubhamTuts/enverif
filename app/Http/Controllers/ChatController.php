@@ -260,6 +260,7 @@ final class ChatController extends Controller
                 'execution' => data_get($run->context, 'execution'),
                 'agent_name' => $agentName,
                 'stage' => $stage,
+                'url' => route('runs.show', $run),
             ] : null,
         ]);
     }
@@ -452,7 +453,8 @@ final class ChatController extends Controller
     /** @param list<int> $connectorIds @param list<int> $skillIds @param list<int> $workflowIds @param list<int> $leadIds @param list<int> $campaignIds @return list<array<string,mixed>> */
     private function mentionSnapshots(array $connectorIds, array $skillIds, array $workflowIds, array $leadIds, array $campaignIds, Agent $agent): array
     {
-        $mentions = [['type'=>'agent','id'=>$agent->id,'label'=>$agent->name]];
+        // Agent is chosen in the composer control — do not duplicate it as an @mention chip.
+        $mentions = [];
         foreach (ConnectorConnection::whereIn('id',$connectorIds)->get(['id','name']) as $row) $mentions[]=['type'=>'plugin','id'=>$row->id,'label'=>$row->name];
         foreach (Skill::whereIn('id',$skillIds)->get(['id','name']) as $row) $mentions[]=['type'=>'skill','id'=>$row->id,'label'=>$row->name];
         foreach (Workflow::whereIn('id',$workflowIds)->get(['id','name']) as $row) $mentions[]=['type'=>'workflow','id'=>$row->id,'label'=>$row->name];

@@ -2,6 +2,18 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.9 — 2026-08-06
+
+### Bug fixes
+- Fixed **agents/create 500**: Blade treated `|` inside `@selected(...)` as a filter when rendering creative image-model options.
+- Chat send button stays disabled while an agent run is in progress; prompt is read-only during the turn.
+- Live run visibility: thread toolbar shows the active stage with a link to the durable run; transcript “View run” no longer depends on a broken glyph.
+
+### UI
+- Slim chat composer: removed the heavy top **Run settings** bar.
+- Agent picker (with avatar) sits beside the send button; **Advanced** popover holds connection / model / effort / keep-for-chat.
+- `@` mention picker no longer lists agents (agent is chosen in the composer control); user bubbles no longer duplicate `@agent` chips.
+
 ## 1.3.8 — 2026-08-06
 
 ### Enhancements

@@ -2,7 +2,11 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.3.8
+**Target release:** 1.3.9
+
+### 1.3.9 slim composer + agent create fix
+
+Version 1.3.9 removes the heavy Run settings bar, places agent selection and an Advanced model popover beside send, drops agents from `@` tagging, blocks submit during live runs, surfaces active run stage in the thread toolbar, and fixes agents/create 500 caused by Blade `|` filter parsing in creative image-model options.
 
 ### 1.3.8 live stage, @mentions, gated creative
 

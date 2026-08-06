@@ -28,12 +28,13 @@
 >
     @if($thread)
         <div class="chat-thread-toolbar">
-            <div class="chat-thread-state">
-                <span class="status-dot"></span>
-                <span>{{ $thread->defaultAgent?->name ?: __('ui.agent') }}</span>
+            <div class="chat-thread-state" data-chat-thread-state>
+                <span class="status-dot" data-chat-status-dot></span>
+                <span data-chat-thread-agent>{{ $thread->defaultAgent?->name ?: __('ui.agent') }}</span>
                 @if($thread->default_effort)
                     <span class="thread-chip">{{ ucfirst($thread->default_effort) }}</span>
                 @endif
+                <span class="thread-run-chip" data-chat-thread-run hidden></span>
             </div>
 
             <details class="thread-menu">
@@ -108,80 +109,8 @@
     </div>
 
     <div class="chat-composer-wrap">
-        <form class="chat-composer" method="post" enctype="multipart/form-data" action="{{ route('chat.send', $thread) }}" data-chat-form>
+        <form class="chat-composer" method="post" enctype="multipart/form-data" action="{{ route('chat.send', $thread) }}" data-chat-form @if($modelConnections->isEmpty()) data-preflight-blocked="1" @endif>
             @csrf
-
-            <details class="composer-advanced" data-composer-advanced>
-                <summary class="composer-advanced-summary">
-                    <span>Run settings</span>
-                    <small data-composer-summary>
-                        {{ $agents->firstWhere('id', (int) $selectedAgentId)?->name ?: 'Auto agent' }}
-                        · {{ $currentConnection?->name ?: 'Default connection' }}
-                        · {{ $selectedModel !== '' ? $selectedModel : 'Default model' }}
-                        · {{ ucfirst($selectedEffort ?: 'standard') }}
-                    </small>
-                </summary>
-                <div class="composer-selection-row">
-                <label class="composer-select">
-                    <span>Agent</span>
-                    <select name="agent_id" data-chat-agent aria-label="Agent" @disabled($agents->isEmpty() && $modelConnections->isEmpty())>
-                                @forelse($agents as $agent)
-                                    <option
-                                        value="{{ $agent->id }}"
-                                        data-model-connection="{{ $agent->model_connection_id }}"
-                                        data-model="{{ $agent->model }}"
-                                        data-effort="{{ $agent->default_effort ?: 'standard' }}"
-                                        @selected((int) $selectedAgentId === $agent->id)
-                                    >{{ $agent->name }}</option>
-                                @empty
-                                    <option value="">Auto-configured on first message</option>
-                                @endforelse
-                            </select>
-                </label>
-
-                <label class="composer-select">
-                    <span>Connection</span>
-                    <select name="model_connection_id" data-chat-model-connection aria-label="Model connection" autocomplete="off">
-                        <option value="">Agent default</option>
-                        @foreach($modelConnections as $connection)
-                            <option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}" @selected((int) $selectedConnectionId === $connection->id)>
-                                {{ $connection->name }} · {{ $connection->provider }}
-                            </option>
-                        @endforeach
-                    </select>
-                </label>
-
-                <label class="composer-select">
-                    <span>Model</span>
-                    <select name="model" data-chat-model aria-label="Model" autocomplete="off">
-                        <option value="">Connection default</option>
-                        @foreach($currentModels as $modelId)
-                            <option value="{{ $modelId }}" @selected(! $customSelectedModel && $selectedModel === $modelId)>{{ $modelId }}</option>
-                        @endforeach
-                        <option value="__custom__" @selected($customSelectedModel)>Custom model…</option>
-                    </select>
-                </label>
-
-                <label class="composer-select">
-                    <span>Effort</span>
-                    <select name="effort" data-chat-effort aria-label="Execution effort" autocomplete="off">
-                        <option value="fast" @selected($selectedEffort === 'fast')>Fast</option>
-                        <option value="standard" @selected($selectedEffort === 'standard')>Standard</option>
-                        <option value="deep" @selected($selectedEffort === 'deep')>Deep</option>
-                    </select>
-                </label>
-
-                <label class="composer-scope">
-                    <input type="hidden" name="persist_defaults" value="0">
-                    <input type="checkbox" name="persist_defaults" value="1" checked>
-                    <span>Keep for this chat</span>
-                </label>
-                </div>
-            </details>
-
-            <div class="custom-model-row" data-chat-custom-model-wrap @if(! $customSelectedModel) hidden @endif>
-                <input class="field mono" name="custom_model" data-chat-custom-model value="{{ $customSelectedModel ? $selectedModel : '' }}" placeholder="Custom provider model ID">
-            </div>
 
             @if($modelConnections->isEmpty())
                 <div class="chat-preflight-notice">
@@ -205,35 +134,13 @@
 
                     <div class="context-menu" data-context-menu hidden>
                         <div class="context-search">
-                            <input type="search" placeholder="Type @agent, @plugin, @skill…" data-context-search>
+                            <input type="search" placeholder="Type @plugin, @skill, @gtm…" data-context-search>
                         </div>
 
                         <div class="context-groups">
                             <section>
-                                <strong>{{ __('ui.agents') }}</strong>
-                                @forelse($agents as $agent)
-                                    <label class="context-option" data-context-item data-context-type="agent" data-search="{{ strtolower($agent->name.' agent '.$agent->slug) }}">
-                                        <input type="radio" name="agent_context" value="{{ $agent->id }}" @checked((int) $selectedAgentId === $agent->id) data-agent-context>
-                                        <span class="context-icon agent">
-                                            @if($agent->avatar_path)
-                                                <img src="{{ route('agents.avatar', $agent) }}" alt="">
-                                            @else
-                                                A
-                                            @endif
-                                        </span>
-                                        <span>
-                                            <b>{{ $agent->name }}</b>
-                                            <small>{{ $agent->description }}</small>
-                                        </span>
-                                    </label>
-                                @empty
-                                    <p>{{ __('ui.no_active_agents') }} <a href="{{ route('agents.create') }}">{{ __('ui.create_one') }}</a>.</p>
-                                @endforelse
-                            </section>
-
-                            <section>
                                 <strong>{{ __('ui.plugins') }}</strong>
-                                @foreach($connectors as $connector)
+                                @forelse($connectors as $connector)
                                     <label class="context-option" data-context-item data-context-type="plugin" data-search="{{ strtolower($connector->name.' plugin '.$connector->driver) }}">
                                         <input type="checkbox" name="connector_ids[]" value="{{ $connector->id }}">
                                         <span class="context-icon plugin">
@@ -244,12 +151,14 @@
                                             <small>{{ $connector->driver }} · by Codefreex</small>
                                         </span>
                                     </label>
-                                @endforeach
+                                @empty
+                                    <p class="muted">No plugins connected.</p>
+                                @endforelse
                             </section>
 
                             <section>
                                 <strong>{{ __('ui.skills') }}</strong>
-                                @foreach($skills as $skill)
+                                @forelse($skills as $skill)
                                     <label class="context-option" data-context-item data-context-type="skill" data-search="{{ strtolower($skill->name.' skill '.$skill->slug) }}">
                                         <input type="checkbox" name="skill_ids[]" value="{{ $skill->id }}">
                                         <span class="context-icon skill">S</span>
@@ -258,10 +167,12 @@
                                             <small>{{ $skill->slug }}</small>
                                         </span>
                                     </label>
-                                @endforeach
+                                @empty
+                                    <p class="muted">No skills installed.</p>
+                                @endforelse
                             </section>
 
-                            <section>
+                            <section @if($workflows->isEmpty()) hidden @endif>
                                 <strong>{{ __('ui.workflows') }}</strong>
                                 @foreach($workflows as $workflow)
                                     <label class="context-option" data-context-item data-context-type="workflow" data-search="{{ strtolower($workflow->name.' workflow') }}">
@@ -275,7 +186,7 @@
                                 @endforeach
                             </section>
 
-                            <section>
+                            <section @if($leads->isEmpty()) hidden @endif>
                                 <strong>Leads</strong>
                                 @foreach($leads as $lead)
                                     <label class="context-option" data-context-item data-context-type="lead" data-search="{{ strtolower(trim($lead->first_name.' '.$lead->last_name).' '.$lead->company.' '.$lead->email.' lead') }}">
@@ -289,7 +200,7 @@
                                 @endforeach
                             </section>
 
-                            <section>
+                            <section @if($campaigns->isEmpty()) hidden @endif>
                                 <strong>Campaigns</strong>
                                 @foreach($campaigns as $campaign)
                                     <label class="context-option" data-context-item data-context-type="campaign" data-search="{{ strtolower($campaign->name.' campaign') }}">
@@ -305,11 +216,87 @@
                     <div class="selected-context" data-selected-context></div>
                 </div>
 
-                <button class="send-button" type="submit" aria-label="{{ __('ui.send') }}" @disabled($modelConnections->isEmpty())>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="m5 12 7-7 7 7M12 5v14"/>
-                    </svg>
-                </button>
+                <div class="composer-right">
+                    <details class="composer-advanced" data-composer-advanced>
+                        <summary class="composer-advanced-trigger" aria-label="Advanced model settings">Advanced</summary>
+                        <div class="composer-advanced-panel" data-composer-advanced-panel>
+                            <label class="composer-select">
+                                <span>Connection</span>
+                                <select name="model_connection_id" data-chat-model-connection aria-label="Model connection" autocomplete="off">
+                                    <option value="">Agent default</option>
+                                    @foreach($modelConnections as $connection)
+                                        <option value="{{ $connection->id }}" data-provider="{{ $connection->provider }}" @selected((int) $selectedConnectionId === $connection->id)>
+                                            {{ $connection->name }} · {{ $connection->provider }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+
+                            <label class="composer-select">
+                                <span>Model</span>
+                                <select name="model" data-chat-model aria-label="Model" autocomplete="off">
+                                    <option value="">Connection default</option>
+                                    @foreach($currentModels as $modelId)
+                                        <option value="{{ $modelId }}" @selected(! $customSelectedModel && $selectedModel === $modelId)>{{ $modelId }}</option>
+                                    @endforeach
+                                    <option value="__custom__" @selected($customSelectedModel)>Custom model…</option>
+                                </select>
+                            </label>
+
+                            <div class="custom-model-row" data-chat-custom-model-wrap @if(! $customSelectedModel) hidden @endif>
+                                <input class="field mono" name="custom_model" data-chat-custom-model value="{{ $customSelectedModel ? $selectedModel : '' }}" placeholder="Custom provider model ID">
+                            </div>
+
+                            <label class="composer-select">
+                                <span>Effort</span>
+                                <select name="effort" data-chat-effort aria-label="Execution effort" autocomplete="off">
+                                    <option value="fast" @selected($selectedEffort === 'fast')>Fast</option>
+                                    <option value="standard" @selected($selectedEffort === 'standard')>Standard</option>
+                                    <option value="deep" @selected($selectedEffort === 'deep')>Deep</option>
+                                </select>
+                            </label>
+
+                            <label class="composer-scope">
+                                <input type="hidden" name="persist_defaults" value="0">
+                                <input type="checkbox" name="persist_defaults" value="1" checked>
+                                <span>Keep for this chat</span>
+                            </label>
+                        </div>
+                    </details>
+
+                    @php
+                        $selectedAgent = $agents->firstWhere('id', (int) $selectedAgentId);
+                    @endphp
+                    <label class="composer-agent" title="Agent">
+                        <span class="composer-agent-avatar" data-chat-agent-avatar>
+                            @if($selectedAgent?->avatar_path)
+                                <img src="{{ route('agents.avatar', $selectedAgent) }}" alt="">
+                            @else
+                                <img src="{{ asset('assets/enverif-mark.svg') }}" alt="">
+                            @endif
+                        </span>
+                        <select name="agent_id" data-chat-agent aria-label="Agent" @disabled($agents->isEmpty() && $modelConnections->isEmpty())>
+                            @forelse($agents as $agent)
+                                <option
+                                    value="{{ $agent->id }}"
+                                    data-model-connection="{{ $agent->model_connection_id }}"
+                                    data-model="{{ $agent->model }}"
+                                    data-effort="{{ $agent->default_effort ?: 'standard' }}"
+                                    data-avatar="{{ $agent->avatar_path ? route('agents.avatar', $agent) : asset('assets/enverif-mark.svg') }}"
+                                    @selected((int) $selectedAgentId === $agent->id)
+                                >{{ $agent->name }}</option>
+                            @empty
+                                <option value="">Auto agent</option>
+                            @endforelse
+                        </select>
+                    </label>
+
+                    <button class="send-button" type="submit" aria-label="{{ __('ui.send') }}" @disabled($modelConnections->isEmpty()) @if($modelConnections->isEmpty()) data-preflight-disabled="1" @endif>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="m5 12 7-7 7 7M12 5v14"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </form>
 

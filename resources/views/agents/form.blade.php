@@ -3,12 +3,22 @@
 @section('content')
 @php
     $agentModelCatalogJson = json_encode($modelCatalog, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
+    $selectedConnectionId = (string) old('model_connection_id', $agent->model_connection_id);
+    $selectedConnection = $models->first(fn ($m) => (string) $m->id === $selectedConnectionId);
+    $knownAgentModels = $selectedConnection ? ($modelCatalog[$selectedConnection->provider] ?? []) : [];
+    $agentModelValue = old('model', $agent->model ?: '');
+    $customAgentModel = $agentModelValue !== '' && ! in_array($agentModelValue, $knownAgentModels, true);
+    $creative = (array) data_get($agent->settings, 'creative', []);
+    $creativeEnabled = (bool) old('creative_enabled', data_get($creative, 'enabled', data_get($creative, 'image_generation', false)));
+    $imageModelOptions = $imageModelOptions ?? [];
+    $selectedImageKey = (string) old(
+        'creative_image_model_key',
+        trim((string) data_get($creative, 'image_connection_id')).':'.trim((string) data_get($creative, 'image_model'))
+    );
+    if ($selectedImageKey === ':') {
+        $selectedImageKey = '';
+    }
 @endphp
-@php($selectedConnectionId = (string) old('model_connection_id',$agent->model_connection_id))
-@php($selectedConnection = $models->first(fn($m)=>(string)$m->id===$selectedConnectionId))
-@php($knownAgentModels = $selectedConnection ? ($modelCatalog[$selectedConnection->provider] ?? []) : [])
-@php($agentModelValue = old('model',$agent->model ?: ''))
-@php($customAgentModel = $agentModelValue !== '' && !in_array($agentModelValue,$knownAgentModels,true))
 <div class="page-head"><div><h1>{{ $agent->exists ? __('ui.edit').' '.$agent->name : __('ui.new_agent') }}</h1><p>{{ __('ui.agent_form_desc') }}</p></div><a class="btn" href="{{ $agent->exists ? route('agents.show',$agent) : route('agents.index') }}">{{ __('ui.cancel') }}</a></div>
 <form method="post" action="{{ $agent->exists ? route('agents.update',$agent) : route('agents.store') }}" class="grid grid-3" enctype="multipart/form-data" data-agent-model-catalog="{{ $agentModelCatalogJson }}">@csrf @if($agent->exists) @method('PUT') @endif
 <section class="card card-pad span-2"><div class="form-grid">
@@ -35,11 +45,6 @@
 <div class="form-group"><label class="form-label">{{ __('ui.allow_tools') }}</label><textarea class="textarea mono" name="allow_tools" style="min-height:80px">{{ old('allow_tools',implode("\n",data_get($agent->policy,'allow',[]))) }}</textarea></div>
 <div class="form-group"><label class="form-label">{{ __('ui.deny_tools') }}</label><textarea class="textarea mono" name="deny_tools" style="min-height:80px">{{ old('deny_tools',implode("\n",data_get($agent->policy,'deny',[]))) }}</textarea></div>
 </aside>
-@php
-    $creative = (array) data_get($agent->settings, 'creative', []);
-    $creativeEnabled = (bool) old('creative_enabled', data_get($creative, 'enabled', data_get($creative, 'image_generation', false)));
-    $imageModelOptions = $imageModelOptions ?? [];
-@endphp
 <section class="card card-pad span-2" data-creative-panel>
     <div class="between" style="align-items:flex-start;gap:16px;margin-bottom:12px">
         <div>
@@ -61,8 +66,10 @@
                 <select class="select" name="creative_image_model_key">
                     <option value="">No image model</option>
                     @foreach($imageModelOptions as $option)
-                        @php($key = $option['connection_id'].'|'.$option['model'])
-                        <option value="{{ $key }}" @selected(old('creative_image_model_key', data_get($creative, 'image_connection_id').'|'.data_get($creative, 'image_model')) === $key)>
+                        @php
+                            $imageKey = $option['connection_id'].':'.$option['model'];
+                        @endphp
+                        <option value="{{ $imageKey }}" @selected($selectedImageKey === $imageKey)>
                             {{ $option['connection'] }} · {{ $option['provider'] }} · {{ $option['model'] }}
                         </option>
                     @endforeach

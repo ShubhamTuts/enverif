@@ -44,9 +44,10 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
-## Enverif 1.3.8
+## Enverif 1.3.9
 
-The 1.3.8 release tightens chat UX: live agent stage text (not static progress copy), reliable `@` mention search/select, and agent creative settings gated behind a toggle with OpenAI/Gemini image models from the registry.
+The 1.3.9 release slims the chat composer (agent + Advanced beside send, no heavy Run settings bar), fixes the agents/create 500 from a Blade `|` filter collision, blocks send while runs are live, and surfaces active session runs in the thread toolbar.
+
 
 ## Enverif 1.3.6
 

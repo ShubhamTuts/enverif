@@ -35,7 +35,7 @@
                         @endif
 
                         @if($message->run_id && $message->role === 'assistant')
-                            <a href="{{ route('runs.show', $message->run_id) }}">{{ __('ui.view_run') }}</a>
+                            <a class="run-link" href="{{ route('runs.show', $message->run_id) }}">View run</a>
                         @endif
                     </div>
 
@@ -67,6 +67,7 @@
                     @if($message->role === 'user' && is_array($message->meta))
                         <div class="message-tags">
                             @foreach(($message->meta['mentions'] ?? []) as $mention)
+                                @continue(($mention['type'] ?? '') === 'agent')
                                 <span class="mention-chip mention-{{ $mention['type'] ?? 'context' }}">{{ '@'.($mention['type'] ?? 'context') }} {{ $mention['label'] }}</span>
                             @endforeach
 

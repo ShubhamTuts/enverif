@@ -175,12 +175,28 @@ button.send-button:disabled{opacity:.45;cursor:not-allowed;transform:none!import
 .workflow-expr-help code{cursor:default}
 @media (max-width:1100px){.workflow-builder{grid-template-columns:1fr;height:auto}.workflow-palette,.workflow-inspector{max-height:260px}.workflow-canvas-wrap{min-height:480px}.workflow-toolbar-hint{display:none}}
 
-/* Enverif 1.3.8 — live stage, @mention picker, creative gate */
-.chat-composer{min-height:112px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,box-shadow .15s,opacity .15s}
-.chat-composer.is-sending{opacity:1}
+/* Enverif 1.3.9 — slim composer, Advanced popover, live run chip */
+.chat-composer{min-height:0;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,box-shadow .15s,opacity .15s;padding:10px 12px 11px}
+.chat-composer.is-sending,.chat-composer.is-busy{opacity:1}
+.chat-composer.is-busy .send-button{opacity:.45;cursor:not-allowed;pointer-events:none}
 .chat-composer textarea{min-height:44px!important;max-height:200px;resize:none;width:100%;border:0;background:transparent;outline:0;padding:6px 4px;line-height:1.45}
-.composer-controls{min-height:36px;align-items:center}
-.selected-context{display:flex;flex-wrap:wrap;gap:6px;max-width:min(560px,62vw);overflow:visible;min-height:0}
+.chat-composer textarea[readonly]{opacity:.72;cursor:default}
+.composer-controls{min-height:36px;align-items:center;display:flex;justify-content:space-between;gap:10px}
+.composer-right{display:flex;align-items:center;gap:8px;flex:0 0 auto;position:relative}
+.composer-advanced{position:relative;border:0;background:transparent;margin:0;overflow:visible}
+.composer-advanced-trigger{list-style:none;cursor:pointer;display:inline-flex;align-items:center;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font-size:11px;font-weight:700;color:var(--muted)}
+.composer-advanced-trigger::-webkit-details-marker{display:none}
+.composer-advanced[open] .composer-advanced-trigger{border-color:var(--line-strong);color:var(--text);background:var(--panel-strong)}
+.composer-advanced-panel{position:absolute;right:0;bottom:calc(100% + 8px);z-index:130;width:min(320px,calc(100vw - 48px));padding:12px;border:1px solid var(--line-strong);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);display:grid;gap:10px}
+.composer-advanced-panel .composer-select{display:grid;gap:4px;width:100%}
+.composer-advanced-panel .composer-select span{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.composer-advanced-panel .composer-select select,.composer-advanced-panel .field{width:100%;max-width:none}
+.composer-agent{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 8px 0 4px;border:1px solid var(--line);border-radius:999px;background:var(--panel);min-width:0;max-width:168px}
+.composer-agent.is-disabled{opacity:.55;pointer-events:none}
+.composer-agent-avatar{width:24px;height:24px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:var(--accent-soft);display:grid;place-items:center}
+.composer-agent-avatar img{width:100%;height:100%;object-fit:cover}
+.composer-agent select{border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;outline:0;max-width:120px;min-width:0;padding:0;cursor:pointer}
+.selected-context{display:flex;flex-wrap:wrap;gap:6px;max-width:min(420px,48vw);overflow:visible;min-height:0}
 .selected-context[hidden]{display:none!important}
 .context-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:4px 6px 4px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);max-width:220px}
 .context-pill>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -195,7 +211,15 @@ button.send-button:disabled{opacity:.45;cursor:not-allowed;transform:none!import
 .chat-thinking-copy strong{font-size:12px;color:var(--text);font-weight:700}
 .chat-thinking-copy small{display:none}
 .chat-message{width:min(860px,calc(100% - 24px));margin-left:auto;margin-right:auto}
-.chat-scroll{padding-bottom:190px}
+.chat-scroll{padding-bottom:160px}
+.message-meta .run-link{font-size:11px;font-weight:650;color:var(--accent);text-decoration:none;margin-left:6px}
+.message-meta .run-link:hover{text-decoration:underline}
+.thread-run-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:650;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);max-width:min(360px,46vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thread-run-chip[hidden]{display:none!important}
+.thread-run-chip a{color:inherit;text-decoration:none}
+.thread-run-chip a:hover{text-decoration:underline}
+.status-dot.is-live{background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);animation:enverif-pulse 1.4s ease-in-out infinite}
+@keyframes enverif-pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .workflow-lines{pointer-events:none;z-index:1}
 .workflow-edge{pointer-events:stroke;cursor:pointer}
 .workflow-stage{z-index:2}
@@ -203,3 +227,8 @@ button.send-button:disabled{opacity:.45;cursor:not-allowed;transform:none!import
 .workflow-palette-item{cursor:grab}
 .workflow-palette-item:active{cursor:grabbing}
 .workflow-canvas-empty{z-index:0}
+@media(max-width:720px){
+.composer-agent{max-width:120px}
+.composer-agent select{max-width:72px}
+.composer-advanced-panel{right:-12px;width:min(300px,calc(100vw - 28px))}
+}

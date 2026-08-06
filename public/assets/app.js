@@ -756,6 +756,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     let statusUrl = shell.dataset.statusUrl || '';
     let pollTimer = null;
     let busy = false;
+    const agentsDisabledBaseline = Boolean(agentSelect?.disabled);
 
     const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
     const resize = () => {
@@ -769,11 +770,19 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
     const setBusy = (value) => {
         busy = value;
         form?.classList.toggle('is-sending', value);
+        form?.classList.toggle('is-busy', value);
+        if (prompt) prompt.readOnly = value;
         if (send) {
-            send.disabled = value || send.dataset.preflightDisabled === '1';
+            const blocked = value || send.dataset.preflightDisabled === '1' || form?.dataset.preflightBlocked === '1';
+            send.disabled = blocked;
             if (value) send.setAttribute('aria-busy', 'true');
             else send.removeAttribute('aria-busy');
         }
+        const advanced = shell.querySelector('[data-composer-advanced]');
+        if (advanced) advanced.toggleAttribute('inert', value);
+        const agentControl = shell.querySelector('.composer-agent');
+        if (agentControl) agentControl.classList.toggle('is-disabled', value);
+        if (agentSelect) agentSelect.disabled = value || agentsDisabledBaseline;
     };
     const showError = (message = '') => {
         if (!errorBox) return;
@@ -913,16 +922,38 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         prompt?.focus({preventScroll: true});
     };
     const terminal = (status) => ['completed', 'failed', 'cancelled'].includes(status || '');
+    const syncThreadRun = (data) => {
+        const chip = shell.querySelector('[data-chat-thread-run]');
+        const dot = shell.querySelector('[data-chat-status-dot]');
+        const agentLabel = shell.querySelector('[data-chat-thread-agent]');
+        const running = Boolean(data?.busy) || (data?.run && !terminal(data.run.status));
+        if (dot) dot.classList.toggle('is-live', running);
+        if (agentLabel && data?.run?.agent_name) agentLabel.textContent = data.run.agent_name;
+        if (!chip) return;
+        if (running && data?.run) {
+            chip.hidden = false;
+            const label = data.run.stage || ((data.run.agent_name || 'Agent') + ' is working…');
+            chip.innerHTML = data.run.url
+                ? `<a href="${escape(data.run.url)}">${escape(label)}</a>`
+                : escape(label);
+        } else {
+            chip.hidden = true;
+            chip.textContent = '';
+        }
+    };
     const applyStatus = (data) => {
         if (data?.transcript_html) renderTranscript(data.transcript_html);
         if (data?.title) updateDocumentTitle(data.title);
+        syncThreadRun(data);
         const done = data?.busy === false || (data?.run && terminal(data.run.status));
         if (done) {
             shell.querySelector('[data-chat-thinking]')?.remove();
+            setBusy(false);
             return;
         }
         const stage = shell.querySelector('[data-chat-stage]');
         if (stage && data?.run?.stage) stage.textContent = data.run.stage;
+        setBusy(true);
     };
     const schedulePoll = (delay = 900) => {
         if (!statusUrl) return;
@@ -1023,19 +1054,17 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         }
     });
     shell.querySelectorAll('.context-option input').forEach((input) => input.addEventListener('change', () => {
-        const option = input.closest('.context-option');
-        if (option?.dataset.contextType === 'agent' && input.checked && agentSelect) {
-            agentSelect.value = input.value;
-            agentSelect.dispatchEvent(new Event('change'));
-        }
         if (input.checked) stripMentionTrigger();
         if (menu) menu.hidden = true;
         refreshPills();
     }));
+    const syncAgentAvatar = () => {
+        const avatar = shell.querySelector('[data-chat-agent-avatar] img');
+        const option = agentSelect?.selectedOptions?.[0];
+        if (avatar && option?.dataset.avatar) avatar.src = option.dataset.avatar;
+    };
     agentSelect?.addEventListener('change', () => {
-        const radio = form?.querySelector(`[data-agent-context][value="${CSS.escape(agentSelect.value)}"]`);
-        if (radio) radio.checked = true;
-
+        syncAgentAvatar();
         const option = agentSelect.selectedOptions?.[0];
         const preferredConnection = option?.dataset.modelConnection || '';
         const preferredModel = option?.dataset.model || '';
@@ -1057,7 +1086,12 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         if (effortSelect && ['fast', 'standard', 'deep'].includes(preferredEffort)) {
             effortSelect.value = preferredEffort;
         }
-        refreshPills();
+        const agentLabel = shell.querySelector('[data-chat-thread-agent]');
+        if (agentLabel && option?.textContent) agentLabel.textContent = option.textContent.trim();
+    });
+    document.addEventListener('click', (event) => {
+        const advanced = shell.querySelector('[data-composer-advanced]');
+        if (advanced?.open && !advanced.contains(event.target)) advanced.open = false;
     });
     search?.addEventListener('input', () => filterContext(search.value));
     selected?.addEventListener('click', (event) => {
@@ -1083,7 +1117,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         showError('');
         setBusy(true);
         // Preserve composer chrome height while the request is in flight.
-        form.style.minHeight = `${Math.max(form.offsetHeight, 112)}px`;
+        form.style.minHeight = `${Math.max(form.offsetHeight, 88)}px`;
 
         try {
             const response = await fetch(form.action, {

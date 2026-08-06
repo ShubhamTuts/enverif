@@ -178,8 +178,11 @@ final class AgentController extends Controller
         $imageKey = trim((string) $request->input('creative_image_model_key', ''));
         $imageConnectionId = null;
         $imageModel = '';
-        if ($imageKey !== '' && str_contains($imageKey, '|')) {
-            [$imageConnectionId, $imageModel] = array_pad(explode('|', $imageKey, 2), 2, '');
+        // Prefer ":" — Blade treats "|" inside @directives as a filter and 500s the agent form.
+        // Accept legacy "|" keys from earlier 1.3.8 builds.
+        if ($imageKey !== '' && (str_contains($imageKey, ':') || str_contains($imageKey, '|'))) {
+            $separator = str_contains($imageKey, ':') ? ':' : '|';
+            [$imageConnectionId, $imageModel] = array_pad(explode($separator, $imageKey, 2), 2, '');
             $imageConnectionId = (int) $imageConnectionId;
             $imageModel = trim((string) $imageModel);
             $allowed = collect($this->imageModelOptions())->contains(

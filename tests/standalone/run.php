@@ -444,7 +444,7 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
 $tests['release source reports semantic version from VERSION file'] = function (): void {
     $version = trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION'));
     assert(preg_match('/^\d+\.\d+\.\d+$/', $version) === 1);
-    assert($version === '1.3.8');
+    assert($version === '1.3.9');
 };
 
 
@@ -690,6 +690,11 @@ $tests['tool schema normalizer encodes empty properties as JSON objects'] = func
     assert(is_file(dirname(__DIR__, 2).'/app/Core/Models/ModelRegistry.php'));
     $chat = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/chat/index.blade.php');
     assert(str_contains($chat, 'composer-advanced'));
+    assert(str_contains($chat, 'composer-agent'));
+    assert(str_contains($chat, 'composer-advanced-trigger'));
+    assert(! str_contains($chat, 'Run settings'));
+    assert(! str_contains($chat, 'data-agent-context'));
+    assert(! str_contains($chat, "data-context-type=\"agent\""));
     $workflowForm = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/workflows/form.blade.php');
     $workflowJs = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/app.js');
     assert(str_contains($workflowForm, 'data-palette-search'));
@@ -706,16 +711,21 @@ $tests['tool schema normalizer encodes empty properties as JSON objects'] = func
     assert(str_contains($chatJs, 'stillBusy'));
     assert(str_contains($chatJs, 'selectMentionItem'));
     assert(str_contains($chatJs, 'is-mention-active'));
+    assert(str_contains($chatJs, 'syncThreadRun'));
+    assert(str_contains($chatJs, 'is-busy'));
     $chatController = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/ChatController.php');
     assert(str_contains($chatController, 'WebQueueKick $queueKick'));
     assert(str_contains($chatController, "'busy'"));
     assert(str_contains($chatController, "'stage'"));
+    assert(str_contains($chatController, "'url' => route('runs.show'"));
+    assert(! str_contains($chatController, "['type'=>'agent'"));
     assert(! str_contains((string) file_get_contents(dirname(__DIR__, 2).'/resources/views/chat/_transcript.blade.php'), 'Live run progress'));
     $agentForm = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/agents/form.blade.php');
     $agentController = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/AgentController.php');
     assert(str_contains($agentForm, 'data-creative-toggle'));
     assert(str_contains($agentForm, 'data-creative-fields'));
     assert(str_contains($agentForm, 'creative_image_model_key'));
+    assert(! str_contains($agentForm, "'.'|'."));
     assert(str_contains($agentController, 'imageModelOptions'));
     assert(str_contains($agentController, 'creative_enabled'));
     $registry = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Models/ModelRegistry.php');

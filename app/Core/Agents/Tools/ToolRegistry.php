@@ -8,6 +8,7 @@ use App\Core\Agents\Tools\DTO\ToolExecutionResult;
 use App\Core\Agents\Tools\FirstParty\{AgentListTool, DelegateAgentTool, LeadActivityTool, LeadSearchTool, LeadUpsertTool, MemoryForgetTool, MemoryRememberTool, MemorySearchTool};
 use App\Core\Connectors\ConnectorManager;
 use App\Core\Mcp\McpManager;
+use App\Core\Models\ToolSchemaNormalizer;
 use App\Models\{Agent, AgentRun, ConnectorConnection, McpServer};
 
 final class ToolRegistry
@@ -27,7 +28,12 @@ final class ToolRegistry
     {
         $defs = [];
         foreach ($this->local as $tool) {
-            $defs[] = ['name' => $tool->name(), 'description' => $tool->description(), 'risk' => $tool->risk()->value, 'parameters' => $tool->parameters()];
+            $defs[] = [
+                'name' => $tool->name(),
+                'description' => $tool->description(),
+                'risk' => $tool->risk()->value,
+                'parameters' => ToolSchemaNormalizer::parameters($tool->parameters()),
+            ];
         }
 
         $snapshotAllowed = [];
@@ -72,7 +78,7 @@ final class ToolRegistry
                         'name' => 'mcp.' . $server->id . '.' . ($tool['name'] ?? 'tool'),
                         'description' => (string) ($tool['description'] ?? 'MCP tool'),
                         'risk' => $risk->value,
-                        'parameters' => $tool['inputSchema'] ?? ['type' => 'object', 'properties' => []],
+                        'parameters' => ToolSchemaNormalizer::parameters($tool['inputSchema'] ?? null),
                     ];
                 }
             } catch (\Throwable) {

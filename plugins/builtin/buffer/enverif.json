@@ -1,0 +1,16 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Buffer",
+  "slug": "buffer",
+  "version": "1.0.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\BufferConnector",
+  "capabilities": ["network", "read", "external_write"],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://buffer.com/api",
+  "docs_url": "https://developers.buffer.com/",
+  "category": "Social scheduling",
+  "icon": "icon.svg"
+}

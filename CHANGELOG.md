@@ -2,6 +2,19 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.5 — 2026-08-06
+
+### Bug fixes
+- Fixed DeepSeek/OpenAI tool schema rejection: empty PHP arrays for JSON Schema `properties` encoded as `[]`; providers require `{}`. Added `ToolSchemaNormalizer` at ToolRegistry and all model providers.
+- Improved provider failure diagnostics for auth, quota, retired models, and schema errors.
+
+### Features
+- Capability-aware `ModelRegistry` (tools/vision/reasoning/structured/context) feeding `ProviderManager::catalog()`.
+- First-party **Slack** plugin: auth.test, conversations.list/history, chat.postMessage/update, users.list.
+- First-party **Buffer** plugin: list channels, create draft, queue, schedule via GraphQL `api.buffer.com`.
+- Agent creative/social panel: brand voice, logo URL, sample posts, default Buffer/Slack channels; injected into system prompt when enabled.
+- Chat composer: Agent/Connection/Model/Effort collapsed under **Run settings** summary.
+
 ## 1.3.4 — 2026-08-06
 
 ### Bug fixes

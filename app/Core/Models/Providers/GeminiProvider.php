@@ -5,6 +5,7 @@ namespace App\Core\Models\Providers;
 use App\Core\Models\AttachmentPayload;
 use App\Core\Models\DTO\{ModelRequest, ModelResponse, ToolCall};
 use App\Core\Models\MessageNormalizer;
+use App\Core\Models\ToolSchemaNormalizer;
 use App\Models\ModelConnection;
 
 /**
@@ -70,14 +71,15 @@ final class GeminiProvider extends AbstractHttpProvider
         ];
 
         if ($request->tools) {
+            $normalized = ToolSchemaNormalizer::tools($request->tools);
             $payload['tools'] = [[
                 'functionDeclarations' => array_map(
                     fn ($t) => [
                         'name' => $t['name'],
                         'description' => $t['description'] ?? '',
-                        'parameters' => $t['parameters'] ?? ['type' => 'object', 'properties' => []],
+                        'parameters' => ToolSchemaNormalizer::parameters($t['parameters'] ?? null),
                     ],
-                    $request->tools,
+                    $normalized,
                 ),
             ]];
         }

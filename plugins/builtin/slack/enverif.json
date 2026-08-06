@@ -1,0 +1,16 @@
+{
+  "schema": "enverif.plugin/v1",
+  "name": "Slack",
+  "slug": "slack",
+  "version": "1.0.0",
+  "type": "connector",
+  "driver": "App\\Core\\Connectors\\Drivers\\SlackConnector",
+  "capabilities": ["network", "read", "external_write"],
+  "license": "MIT",
+  "developer": "Codefreex",
+  "developer_url": "https://codefreex.com/",
+  "homepage": "https://api.slack.com/",
+  "docs_url": "https://api.slack.com/methods",
+  "category": "Team messaging",
+  "icon": "icon.svg"
+}

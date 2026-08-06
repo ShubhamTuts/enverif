@@ -6,6 +6,7 @@ use App\Core\Models\AttachmentPayload;
 use App\Core\Models\DTO\{ModelRequest, ModelResponse, ToolCall};
 use App\Core\Models\MessageNormalizer;
 use App\Core\Models\StrictFunctionNameMapper;
+use App\Core\Models\ToolSchemaNormalizer;
 use App\Models\ModelConnection;
 
 /**
@@ -40,7 +41,7 @@ final class AnthropicProvider extends AbstractHttpProvider
     {
         $base = rtrim($connection->base_url ?: 'https://api.anthropic.com', '/');
         $mapper = new StrictFunctionNameMapper;
-        $tools = $mapper->sanitizeTools($request->tools);
+        $tools = $mapper->sanitizeTools(ToolSchemaNormalizer::tools($request->tools));
         $messages = $mapper->sanitizeAnthropicMessages(MessageNormalizer::anthropic($request->messages));
         $blocks = [];
 
@@ -98,7 +99,7 @@ final class AnthropicProvider extends AbstractHttpProvider
                 fn ($t) => [
                     'name' => $t['name'],
                     'description' => $t['description'] ?? '',
-                    'input_schema' => $t['parameters'] ?? ['type' => 'object', 'properties' => []],
+                    'input_schema' => ToolSchemaNormalizer::parameters($t['parameters'] ?? null),
                 ],
                 $tools,
             );

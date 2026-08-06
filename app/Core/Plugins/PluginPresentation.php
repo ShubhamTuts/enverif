@@ -16,6 +16,8 @@ final class PluginPresentation
         'google-maps' => 'google-maps.svg',
         'calendly' => 'calendly.svg',
         'automation-webhook' => 'automation-webhook.svg',
+        'slack' => 'slack.svg',
+        'buffer' => 'buffer.svg',
     ];
 
     public static function iconFor(string $driver): string

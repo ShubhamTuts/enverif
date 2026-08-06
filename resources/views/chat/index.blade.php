@@ -111,7 +111,17 @@
         <form class="chat-composer" method="post" enctype="multipart/form-data" action="{{ route('chat.send', $thread) }}" data-chat-form>
             @csrf
 
-            <div class="composer-selection-row">
+            <details class="composer-advanced" data-composer-advanced>
+                <summary class="composer-advanced-summary">
+                    <span>Run settings</span>
+                    <small data-composer-summary>
+                        {{ $agents->firstWhere('id', (int) $selectedAgentId)?->name ?: 'Auto agent' }}
+                        · {{ $currentConnection?->name ?: 'Default connection' }}
+                        · {{ $selectedModel !== '' ? $selectedModel : 'Default model' }}
+                        · {{ ucfirst($selectedEffort ?: 'standard') }}
+                    </small>
+                </summary>
+                <div class="composer-selection-row">
                 <label class="composer-select">
                     <span>Agent</span>
                     <select name="agent_id" data-chat-agent aria-label="Agent" @disabled($agents->isEmpty() && $modelConnections->isEmpty())>
@@ -166,7 +176,8 @@
                     <input type="checkbox" name="persist_defaults" value="1" checked>
                     <span>Keep for this chat</span>
                 </label>
-            </div>
+                </div>
+            </details>
 
             <div class="custom-model-row" data-chat-custom-model-wrap @if(! $customSelectedModel) hidden @endif>
                 <input class="field mono" name="custom_model" data-chat-custom-model value="{{ $customSelectedModel ? $selectedModel : '' }}" placeholder="Custom provider model ID">

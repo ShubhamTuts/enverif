@@ -54,6 +54,7 @@ final class AgentOrchestrator
                 'max_runtime_seconds' => (int) $agent->max_runtime_seconds,
                 'max_cost_usd' => (float) $agent->max_cost_usd,
                 'policy' => (array) ($agent->policy ?? []),
+                'settings' => (array) ($agent->settings ?? []),
                 'skill_ids' => $agent->skills()->where('status', 'active')->pluck('skills.id')->map(fn ($id) => (int) $id)->all(),
                 'connectors' => $connectors,
             ];
@@ -514,11 +515,27 @@ final class AgentOrchestrator
             return "Model request failed for {$provider}/{$model}. {$detail} Re-check the API key under AI Models.";
         }
 
+        if (stripos($detail, 'MAC is invalid') !== false || stripos($detail, 'decrypt') !== false) {
+            return "{$provider} credentials cannot be decrypted (APP_KEY mismatch or corrupt ciphertext). Open AI Models, re-enter the API key for this connection, save, and Test.";
+        }
+        if (stripos($detail, 'not of type') !== false || stripos($detail, 'Invalid schema') !== false) {
+            return "{$provider}/{$model} rejected a tool schema. Enverif normalizes empty parameter objects for providers — redeploy the latest release if you still see this, then retry.";
+        }
+        if (preg_match('/model[^\n]{0,40}(not found|does not exist|invalid|deprecated|retired)/i', $detail)) {
+            return "{$provider} rejected model `{$model}`. Pick a suggested model under AI Models or enter a verified custom ID, then Test the connection.";
+        }
+        if (preg_match('/(401|unauthorized|invalid.?api.?key|incorrect api key)/i', $detail)) {
+            return "{$provider} rejected the API key. Re-enter credentials under AI Models and Test the connection.";
+        }
+        if (preg_match('/(429|rate.?limit|quota)/i', $detail)) {
+            return "{$provider} rate-limited or quota-exhausted this request. Wait and retry, or switch model/connection.";
+        }
+
         $hint = match ($provider) {
-            'deepseek' => ' Use a current DeepSeek model such as deepseek-v4-flash or deepseek-v4-pro (legacy IDs are remapped automatically).',
-            'openai' => ' Confirm the OpenAI model ID and that the key can access Chat Completions.',
-            'anthropic' => ' Confirm the Claude model ID (for example claude-sonnet-5 or claude-opus-5).',
-            'gemini' => ' Confirm the Gemini model ID (for example gemini-3.6-flash or gemini-2.5-pro).',
+            'deepseek' => ' Prefer deepseek-v4-flash or deepseek-v4-pro. Open AI Models → Test if unsure.',
+            'openai' => ' Confirm Chat Completions access for this key and model ID.',
+            'anthropic' => ' Confirm the Claude model ID (e.g. claude-sonnet-5) and API key.',
+            'gemini' => ' Confirm the Gemini model ID (e.g. gemini-3.6-flash) and API key.',
             default => '',
         };
 

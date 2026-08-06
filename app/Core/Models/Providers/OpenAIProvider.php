@@ -6,6 +6,7 @@ use App\Core\Models\AttachmentPayload;
 use App\Core\Models\DTO\{ModelRequest, ModelResponse, ToolCall};
 use App\Core\Models\MessageNormalizer;
 use App\Core\Models\StrictFunctionNameMapper;
+use App\Core\Models\ToolSchemaNormalizer;
 use App\Models\ModelConnection;
 
 /**
@@ -45,7 +46,7 @@ final class OpenAIProvider extends AbstractHttpProvider
     {
         $base = rtrim($connection->base_url ?: 'https://api.openai.com', '/');
         $mapper = new StrictFunctionNameMapper;
-        $tools = $mapper->sanitizeTools($request->tools);
+        $tools = $mapper->sanitizeTools(ToolSchemaNormalizer::tools($request->tools));
         $messages = array_merge(
             [['role' => 'system', 'content' => $request->system]],
             $mapper->sanitizeOpenAiMessages(MessageNormalizer::openAi($request->messages)),
@@ -135,7 +136,7 @@ final class OpenAIProvider extends AbstractHttpProvider
                 'function' => [
                     'name' => $t['name'],
                     'description' => $t['description'] ?? '',
-                    'parameters' => $t['parameters'] ?? ['type' => 'object', 'properties' => []],
+                    'parameters' => ToolSchemaNormalizer::parameters($t['parameters'] ?? null),
                 ],
             ],
             $tools,

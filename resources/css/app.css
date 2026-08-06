@@ -123,6 +123,18 @@ button.send-button:disabled{opacity:.45;cursor:not-allowed;transform:none!import
 *::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--muted) 38%,transparent);border-radius:999px;border:2px solid transparent;background-clip:content-box}
 *::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--muted) 58%,transparent);border:2px solid transparent;background-clip:content-box}
 
+/* 1.3.5 — compact chat run settings + creative agent panel */
+.composer-advanced{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 2px 8px;overflow:hidden}
+.composer-advanced-summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;font-size:11px;font-weight:700}
+.composer-advanced-summary::-webkit-details-marker{display:none}
+.composer-advanced-summary small{font-weight:550;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%}
+.composer-advanced[open] .composer-advanced-summary{border-bottom:1px solid var(--line)}
+.composer-advanced .composer-selection-row{padding:10px 10px 12px;margin:0}
+.chat-composer-wrap{max-width:min(860px,100%);margin:0 auto;width:100%}
+.chat-transcript,.chat-welcome{max-width:min(820px,100%)}
+.chat-message{max-width:100%}
+[data-creative-panel] .switch{flex:0 0 auto}
+
 /* Provider / credential failures in chat */
 .chat-message.is-error .message-body{border-color:color-mix(in srgb,var(--bad) 28%,var(--line))}
 .error-chip{color:var(--bad)!important;border-color:color-mix(in srgb,var(--bad) 35%,var(--line))!important;background:color-mix(in srgb,var(--bad) 10%,var(--panel))!important}

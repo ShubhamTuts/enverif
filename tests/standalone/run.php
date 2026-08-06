@@ -444,7 +444,7 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
 $tests['release source reports semantic version from VERSION file'] = function (): void {
     $version = trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION'));
     assert(preg_match('/^\d+\.\d+\.\d+$/', $version) === 1);
-    assert($version === '1.3.4');
+    assert($version === '1.3.5');
 };
 
 
@@ -669,6 +669,24 @@ $tests['strict function name mapper sanitizes dotted tool names for DeepSeek'] =
     $anthropic = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Models/Providers/AnthropicProvider.php');
     assert(str_contains($openai, 'StrictFunctionNameMapper'));
     assert(str_contains($anthropic, 'StrictFunctionNameMapper'));
+};
+
+$tests['tool schema normalizer encodes empty properties as JSON objects'] = function (): void {
+    $path = dirname(__DIR__, 2).'/app/Core/Models/ToolSchemaNormalizer.php';
+    assert(is_file($path));
+    require_once $path;
+    $schema = \App\Core\Models\ToolSchemaNormalizer::parameters(['type' => 'object', 'properties' => []]);
+    $json = json_encode(['parameters' => $schema], JSON_UNESCAPED_SLASHES);
+    assert(is_string($json));
+    assert(str_contains($json, '"properties":{}'), 'empty properties must encode as {} not []: '.$json);
+    assert(! str_contains($json, '"properties":[]'), 'must not encode properties as []');
+    $deepseek = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Models/Providers/DeepSeekProvider.php');
+    assert(str_contains($deepseek, 'ToolSchemaNormalizer'));
+    assert(is_file(dirname(__DIR__, 2).'/plugins/builtin/slack/enverif.json'));
+    assert(is_file(dirname(__DIR__, 2).'/plugins/builtin/buffer/enverif.json'));
+    assert(is_file(dirname(__DIR__, 2).'/app/Core/Models/ModelRegistry.php'));
+    $chat = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/chat/index.blade.php');
+    assert(str_contains($chat, 'composer-advanced'));
 };
 
 $tests['credential decrypt failures surface actionable recovery copy'] = function (): void {

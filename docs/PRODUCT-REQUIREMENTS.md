@@ -2,7 +2,11 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.3.4
+**Target release:** 1.3.5
+
+### 1.3.5 production OS hardening addendum
+
+Version 1.3.5 closes the DeepSeek tool-schema blocker (`[] is not of type 'object'`), introduces a capability-aware Model Registry, adds first-party Slack and Buffer connectors, collapses chat run settings into a compact control, and adds agent creative/social publishing configuration (brand voice, Buffer/Slack defaults) for specialist agents.
 
 ### 1.3.4 credential and tool-name hotfix addendum
 

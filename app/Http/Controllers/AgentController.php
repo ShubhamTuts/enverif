@@ -60,7 +60,7 @@ final class AgentController extends Controller
 
     public function update(Request $request, Agent $agent)
     {
-        $data = $this->validateData($request);
+        $data = $this->validateData($request, $agent);
         $data['policy'] = $this->policy($request);
         [$skillIds, $connectorIds] = $this->relationIds($request, $data);
         $agent->update($data);
@@ -116,7 +116,7 @@ final class AgentController extends Controller
         $agent->update(['avatar_path' => $path]);
     }
 
-    private function validateData(Request $request): array
+    private function validateData(Request $request, ?Agent $existing = null): array
     {
         $data = $request->validate([
             'name' => 'required|string|max:120',
@@ -131,6 +131,12 @@ final class AgentController extends Controller
             'max_steps' => 'required|integer|min:1|max:200',
             'max_runtime_seconds' => 'required|integer|min:30|max:7200',
             'max_cost_usd' => 'required|numeric|min:0|max:1000',
+            'creative_brand_name' => 'nullable|string|max:120',
+            'creative_brand_voice' => 'nullable|string|max:2000',
+            'creative_logo_url' => 'nullable|string|max:500',
+            'creative_sample_posts' => 'nullable|string|max:5000',
+            'creative_buffer_channel_id' => 'nullable|string|max:120',
+            'creative_slack_channel' => 'nullable|string|max:120',
         ]);
 
         $selected = (string) ($data['model'] ?? '');
@@ -141,14 +147,44 @@ final class AgentController extends Controller
             }
         } elseif ($selected !== '' && !empty($data['model_connection_id'])) {
             $connection = ModelConnection::find((int) $data['model_connection_id']);
-            if ($connection && !in_array($selected, $this->providers->get($connection->provider)->models(), true)) {
+            $known = $connection ? ($this->providers->catalog()[$connection->provider] ?? []) : [];
+            if ($connection && !in_array($selected, $known, true)) {
                 throw ValidationException::withMessages(['model' => 'Choose a model from the selected provider or select Custom model ID.']);
             }
         }
 
         $data['model'] = $selected !== '' ? $selected : null;
-        unset($data['custom_model'], $data['avatar']);
+        unset(
+            $data['custom_model'],
+            $data['avatar'],
+            $data['creative_brand_name'],
+            $data['creative_brand_voice'],
+            $data['creative_logo_url'],
+            $data['creative_sample_posts'],
+            $data['creative_buffer_channel_id'],
+            $data['creative_slack_channel'],
+        );
+        $data['settings'] = $this->settings($request, $existing);
+
         return $data;
+    }
+
+    private function settings(Request $request, ?Agent $existing = null): array
+    {
+        $current = (array) ($existing?->settings ?? []);
+        $creativeEnabled = $request->boolean('creative_image_generation');
+        $creative = [
+            'image_generation' => $creativeEnabled,
+            'brand_name' => trim((string) $request->input('creative_brand_name', '')),
+            'brand_voice' => trim((string) $request->input('creative_brand_voice', '')),
+            'logo_url' => trim((string) $request->input('creative_logo_url', '')),
+            'sample_posts' => trim((string) $request->input('creative_sample_posts', '')),
+            'default_buffer_channel_id' => trim((string) $request->input('creative_buffer_channel_id', '')),
+            'default_slack_channel' => trim((string) $request->input('creative_slack_channel', '')),
+        ];
+        $current['creative'] = $creative;
+
+        return $current;
     }
 
     private function policy(Request $request): array

@@ -44,6 +44,10 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
+## Enverif 1.3.5
+
+The 1.3.5 release hardens the AI tool/provider boundary so DeepSeek and OpenAI-compatible providers accept Enverif tool schemas (empty JSON Schema `properties` encode as `{}`, not `[]`). A capability-aware Model Registry backs suggested catalogs. First-party Slack and Buffer plugins land for team messaging and social scheduling. Chat run settings collapse into a compact “Run settings” control, and agents gain creative/social publishing configuration for specialist roles.
+
 ## Enverif 1.3.4
 
 The 1.3.4 release fixes two production DeepSeek failures: encrypted API-key decrypt errors (“The MAC is invalid” after an `APP_KEY` change) now show a clear re-enter-key recovery path, and tool names with dots (`memory.search`, `connector.*`, `mcp.*`) are sanitized for DeepSeek/OpenAI/Anthropic while remaining reversible for tool routing. Chat surfaces failed provider/credential runs as Error chips, and connection forms keep consistent action-row spacing.

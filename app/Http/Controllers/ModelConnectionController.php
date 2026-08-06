@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Core\Models\ProviderManager;
 use App\Models\ModelConnection;
+use App\Support\EncryptedCredentials;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 final class ModelConnectionController extends Controller
 {
@@ -49,9 +51,24 @@ final class ModelConnectionController extends Controller
 
     public function test(ModelConnection $model, ProviderManager $providers)
     {
-        $ok = $providers->get($model->provider)->test($model);
-        $model->update(['last_tested_at' => now(), 'last_test_status' => $ok ? 'ok' : 'failed']);
-        return back()->with($ok ? 'status' : 'error', $ok ? __('ui.connection_ok') : __('ui.connection_failed'));
+        $provider = $providers->get($model->provider);
+        $result = method_exists($provider, 'testWithMessage')
+            ? $provider->testWithMessage($model)
+            : ['ok' => $provider->test($model), 'message' => ''];
+
+        $ok = (bool) ($result['ok'] ?? false);
+        $message = trim((string) ($result['message'] ?? ''));
+        if ($ok) {
+            $model->update(['last_tested_at' => now(), 'last_test_status' => 'ok']);
+            return back()->with('status', __('ui.connection_ok'));
+        }
+
+        $model->update(['last_tested_at' => now(), 'last_test_status' => 'failed']);
+        if ($message === '' || str_contains(strtolower($message), 'connection test failed')) {
+            $message = __('ui.connection_failed');
+        }
+
+        return back()->with('error', $message);
     }
 
     public function destroy(ModelConnection $model)
@@ -79,14 +96,31 @@ final class ModelConnectionController extends Controller
         if ($selectedModel === '__custom__') {
             $selectedModel = trim((string) ($data['custom_model'] ?? ''));
             if ($selectedModel === '') {
-                throw \Illuminate\Validation\ValidationException::withMessages(['custom_model' => 'Enter the custom model ID.']);
+                throw ValidationException::withMessages(['custom_model' => 'Enter the custom model ID.']);
             }
         } elseif ($selectedModel === '') {
             $selectedModel = $provider->models()[0] ?? null;
         } elseif (!in_array($selectedModel, $provider->models(), true)) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['default_model' => 'Choose a model from the provider list or select Custom model ID.']);
+            throw ValidationException::withMessages(['default_model' => 'Choose a model from the provider list or select Custom model ID.']);
         }
-        $credentials = $existing ? (array) ($existing->credentials ?? []) : [];
+
+        $credentials = [];
+        if ($existing) {
+            try {
+                $credentials = $existing->decryptedCredentials();
+            } catch (\Throwable $e) {
+                if (! EncryptedCredentials::isDecryptFailure($e)) {
+                    throw $e;
+                }
+                // APP_KEY mismatch: require a fresh API key so the row can be recovered.
+                if (empty($data['api_key'])) {
+                    throw ValidationException::withMessages([
+                        'api_key' => EncryptedCredentials::DECRYPT_MESSAGE,
+                    ]);
+                }
+                $credentials = [];
+            }
+        }
         if (!empty($data['api_key'])) {
             $credentials['api_key'] = $data['api_key'];
         }

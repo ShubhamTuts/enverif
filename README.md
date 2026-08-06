@@ -44,11 +44,11 @@ Use Apollo + Google Maps research, hand deep research to my specialist
 agent, then add qualified companies to the Australia outbound campaign.
 ```
 
-## Enverif 1.3.3
+## Enverif 1.3.4
 
-The 1.3.3 release makes BYOK model connections production-current and closes the remaining chat/plugin UI gaps. Suggested model catalogs now track live OpenAI, Anthropic, Gemini and DeepSeek API IDs (including DeepSeek V4 and current Claude / Gemini generations). Retired DeepSeek and Gemini identifiers are remapped automatically, provider failures surface the HTTP status and API error body in chat, and the composer attachment control uses a real paperclip icon instead of a broken glyph.
+The 1.3.4 release fixes two production DeepSeek failures: encrypted API-key decrypt errors (“The MAC is invalid” after an `APP_KEY` change) now show a clear re-enter-key recovery path, and tool names with dots (`memory.search`, `connector.*`, `mcp.*`) are sanitized for DeepSeek/OpenAI/Anthropic while remaining reversible for tool routing. Chat surfaces failed provider/credential runs as Error chips, and connection forms keep consistent action-row spacing.
 
-Light-mode button hover no longer washes out primary actions, form/action rows keep consistent gaps, provider cards use bundled brand assets, and scrollbars are styled for both themes. Agent and workflow execution remain durable; shared-hosting cron/Web Cron stays authoritative for unattended work. See the [product requirements](docs/PRODUCT-REQUIREMENTS.md) and [changelog](CHANGELOG.md).
+1.3.3 made BYOK model catalogs production-current (DeepSeek V4, current Claude/Gemini/OpenAI IDs), remapped retired model aliases, and polished chat/plugin UI. See the [product requirements](docs/PRODUCT-REQUIREMENTS.md) and [changelog](CHANGELOG.md).
 
 ## What ships
 

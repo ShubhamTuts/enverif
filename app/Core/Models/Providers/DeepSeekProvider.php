@@ -5,6 +5,7 @@ namespace App\Core\Models\Providers;
 use App\Core\Models\AttachmentPayload;
 use App\Core\Models\DTO\{ModelRequest, ModelResponse, ToolCall};
 use App\Core\Models\MessageNormalizer;
+use App\Core\Models\StrictFunctionNameMapper;
 use App\Models\ModelConnection;
 
 /**
@@ -34,9 +35,11 @@ final class DeepSeekProvider extends AbstractHttpProvider
     {
         $base = rtrim($connection->base_url ?: 'https://api.deepseek.com', '/');
         $model = $this->resolveModelId($request->model);
+        $mapper = new StrictFunctionNameMapper;
+        $tools = $mapper->sanitizeTools($request->tools);
         $messages = array_merge(
             [['role' => 'system', 'content' => $request->system]],
-            MessageNormalizer::openAi($request->messages),
+            $mapper->sanitizeOpenAiMessages(MessageNormalizer::openAi($request->messages)),
         );
 
         $attachmentText = [];
@@ -69,7 +72,7 @@ final class DeepSeekProvider extends AbstractHttpProvider
             };
         }
 
-        if ($request->tools) {
+        if ($tools) {
             $payload['tools'] = array_map(
                 fn ($t) => [
                     'type' => 'function',
@@ -79,7 +82,7 @@ final class DeepSeekProvider extends AbstractHttpProvider
                         'parameters' => $t['parameters'] ?? ['type' => 'object', 'properties' => []],
                     ],
                 ],
-                $request->tools,
+                $tools,
             );
         }
 
@@ -94,7 +97,7 @@ final class DeepSeekProvider extends AbstractHttpProvider
             $args = json_decode((string) ($call['function']['arguments'] ?? '{}'), true);
             $calls[] = new ToolCall(
                 (string) ($call['id'] ?? uniqid('tool_', true)),
-                (string) ($call['function']['name'] ?? ''),
+                $mapper->original((string) ($call['function']['name'] ?? '')),
                 is_array($args) ? $args : [],
             );
         }

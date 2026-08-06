@@ -11,7 +11,7 @@
                     : __('ui.you');
             @endphp
 
-            <article class="chat-message {{ $message->role }}" data-message-id="{{ $message->id }}">
+            <article class="chat-message {{ $message->role }}{{ $message->role === 'assistant' && ($message->status === 'failed' || data_get($message->meta, 'status') === 'failed') ? ' is-error' : '' }}" data-message-id="{{ $message->id }}">
                 <div class="message-avatar">
                     @if($message->role === 'assistant')
                         @if($messageAgentId)
@@ -28,7 +28,9 @@
                     <div class="message-meta">
                         <span>{{ $messageAgentName }}</span>
 
-                        @if($message->role === 'assistant' && $message->kind === 'final')
+                        @if($message->role === 'assistant' && ($message->status === 'failed' || data_get($message->meta, 'status') === 'failed'))
+                            <span class="final-chip error-chip">Error</span>
+                        @elseif($message->role === 'assistant' && $message->kind === 'final')
                             <span class="final-chip">Final</span>
                         @endif
 
@@ -38,7 +40,9 @@
                     </div>
 
                     @if($message->content !== '')
-                        @if($message->role === 'assistant')
+                        @if($message->role === 'assistant' && ($message->status === 'failed' || data_get($message->meta, 'status') === 'failed'))
+                            <div class="message-content message-error" role="alert">{!! nl2br(e($message->content)) !!}</div>
+                        @elseif($message->role === 'assistant')
                             <div class="message-content markdown-body">{!! \Illuminate\Support\Str::markdown(
                                 $message->content,
                                 ['html_input' => 'strip', 'allow_unsafe_links' => false]

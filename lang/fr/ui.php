@@ -99,6 +99,7 @@ return [
     'base_url' => 'URL de base',
     'test' => 'Tester la connexion',
     'credential_kept' => 'Laissez le secret vide pour conserver la valeur actuelle.',
+    'credential_kept_or_reenter' => 'Laissez vide pour conserver la clé. Après un changement d’APP_KEY (erreur MAC / déchiffrement), ressaisissez la clé API et enregistrez.',
     'endpoint' => 'Point de terminaison',
     'protocol' => 'Version du protocole',
     'approve' => 'Approuver',

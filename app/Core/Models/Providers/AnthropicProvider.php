@@ -5,6 +5,7 @@ namespace App\Core\Models\Providers;
 use App\Core\Models\AttachmentPayload;
 use App\Core\Models\DTO\{ModelRequest, ModelResponse, ToolCall};
 use App\Core\Models\MessageNormalizer;
+use App\Core\Models\StrictFunctionNameMapper;
 use App\Models\ModelConnection;
 
 /**
@@ -38,7 +39,9 @@ final class AnthropicProvider extends AbstractHttpProvider
     public function complete(ModelConnection $connection, ModelRequest $request): ModelResponse
     {
         $base = rtrim($connection->base_url ?: 'https://api.anthropic.com', '/');
-        $messages = MessageNormalizer::anthropic($request->messages);
+        $mapper = new StrictFunctionNameMapper;
+        $tools = $mapper->sanitizeTools($request->tools);
+        $messages = $mapper->sanitizeAnthropicMessages(MessageNormalizer::anthropic($request->messages));
         $blocks = [];
 
         foreach ($request->attachments as $attachment) {
@@ -90,14 +93,14 @@ final class AnthropicProvider extends AbstractHttpProvider
             ];
         }
 
-        if ($request->tools) {
+        if ($tools) {
             $payload['tools'] = array_map(
                 fn ($t) => [
                     'name' => $t['name'],
                     'description' => $t['description'] ?? '',
                     'input_schema' => $t['parameters'] ?? ['type' => 'object', 'properties' => []],
                 ],
-                $request->tools,
+                $tools,
             );
         }
 
@@ -115,7 +118,7 @@ final class AnthropicProvider extends AbstractHttpProvider
             if (($block['type'] ?? '') === 'tool_use') {
                 $calls[] = new ToolCall(
                     (string) ($block['id'] ?? uniqid('tool_', true)),
-                    (string) ($block['name'] ?? ''),
+                    $mapper->original((string) ($block['name'] ?? '')),
                     is_array($block['input'] ?? null) ? $block['input'] : [],
                 );
             }

@@ -99,6 +99,7 @@ return [
     'base_url' => 'Base URL',
     'test' => 'Test connection',
     'credential_kept' => 'Leave secret blank to keep the existing value.',
+    'credential_kept_or_reenter' => 'Leave blank to keep the existing key. If chat shows a decrypt / MAC error after an APP_KEY change, paste the API key again and save.',
     'endpoint' => 'Endpoint',
     'protocol' => 'Protocol version',
     'approve' => 'Approve',

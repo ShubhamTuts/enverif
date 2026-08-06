@@ -444,7 +444,7 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
 $tests['release source reports semantic version from VERSION file'] = function (): void {
     $version = trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION'));
     assert(preg_match('/^\d+\.\d+\.\d+$/', $version) === 1);
-    assert($version === '1.3.3');
+    assert($version === '1.3.4');
 };
 
 
@@ -647,6 +647,51 @@ $tests['installer always supplies serialized model catalog to the Blade view'] =
     assert(str_contains($controller, "'installModelCatalogJson' =>"));
     assert(str_contains($controller, 'json_encode('));
     assert(str_contains($controller, '$modelCatalog'));
+};
+
+$tests['strict function name mapper sanitizes dotted tool names for DeepSeek'] = function (): void {
+    $path = dirname(__DIR__, 2).'/app/Core/Models/StrictFunctionNameMapper.php';
+    assert(is_file($path));
+    require_once $path;
+    $mapper = new \App\Core\Models\StrictFunctionNameMapper;
+    $tools = $mapper->sanitizeTools([
+        ['name' => 'memory.search', 'description' => 'x'],
+        ['name' => 'connector.12.send', 'description' => 'y'],
+        ['name' => 'mcp.3.foo.bar', 'description' => 'z'],
+    ]);
+    foreach ($tools as $tool) {
+        assert(preg_match('/^[a-zA-Z0-9_-]+$/', $tool['name']) === 1, 'sanitized name must match DeepSeek pattern: '.$tool['name']);
+    }
+    assert($mapper->original($tools[0]['name']) === 'memory.search');
+    assert($mapper->original($tools[1]['name']) === 'connector.12.send');
+    assert($mapper->original($tools[2]['name']) === 'mcp.3.foo.bar');
+    $openai = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Models/Providers/OpenAIProvider.php');
+    $anthropic = (string) file_get_contents(dirname(__DIR__, 2).'/app/Core/Models/Providers/AnthropicProvider.php');
+    assert(str_contains($openai, 'StrictFunctionNameMapper'));
+    assert(str_contains($anthropic, 'StrictFunctionNameMapper'));
+};
+
+$tests['credential decrypt failures surface actionable recovery copy'] = function (): void {
+    $root = dirname(__DIR__, 2);
+    $orchestrator = (string) file_get_contents($root.'/app/Core/Agents/AgentOrchestrator.php');
+    $support = (string) file_get_contents($root.'/app/Support/EncryptedCredentials.php');
+    $deepseek = (string) file_get_contents($root.'/app/Core/Models/Providers/DeepSeekProvider.php');
+    assert(str_contains($support, 'API key cannot be decrypted'));
+    assert(str_contains($support, 'APP_KEY mismatch'));
+    assert(str_contains($orchestrator, 'EncryptedCredentials::isDecryptFailure'));
+    assert(str_contains($orchestrator, 'credential_decrypt_error'));
+    assert(str_contains($deepseek, 'StrictFunctionNameMapper'));
+    assert(str_contains($deepseek, 'sanitizeTools'));
+    assert(str_contains($deepseek, 'mapper->original'));
+};
+
+$tests['chat transcript highlights provider and credential failures'] = function (): void {
+    $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/chat/_transcript.blade.php');
+    $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+    assert(str_contains($view, 'is-error'));
+    assert(str_contains($view, 'message-error'));
+    assert(str_contains($view, 'error-chip'));
+    assert(str_contains($css, '.message-content.message-error'));
 };
 
 $passed = 0;

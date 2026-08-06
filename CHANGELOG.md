@@ -2,6 +2,18 @@
 
 All notable Enverif changes are documented here.
 
+## 1.3.4 — 2026-08-06
+
+### Bug fixes
+- Fixed DeepSeek (and OpenAI/Anthropic) HTTP 400 on tool names containing dots (`memory.search`, `connector.{id}.action`, `mcp.{id}.*`) by sanitizing to `^[a-zA-Z0-9_-]+$` with a reversible map so tool calls still route correctly. Gemini keeps dotted names (allowed by that API).
+- Replaced raw Laravel “The MAC is invalid” credential decrypt failures with an actionable message: re-enter the API key under AI Models after an APP_KEY mismatch. Same recovery path for plugin and MCP secrets.
+- Model / plugin / MCP connection update & test flows no longer crash on undecryptable credentials; they ask for a fresh secret instead.
+- Chat transcript now surfaces failed runs as clear Error chips (not markdown-rendered provider dumps).
+
+### UI
+- Model and MCP forms use consistent action-row spacing; connection forms clarify when to re-enter keys after APP_KEY changes.
+- Stronger chat submit / provider error styling without changing the overall design system.
+
 ## 1.3.3 — 2026-08-06
 
 ### Bug fixes

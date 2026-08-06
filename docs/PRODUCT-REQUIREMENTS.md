@@ -2,7 +2,15 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.3.3
+**Target release:** 1.3.4
+
+### 1.3.4 credential and tool-name hotfix addendum
+
+Version 1.3.4 closes two DeepSeek production defects:
+
+1. Encrypted model/plugin/MCP credentials that fail Laravel Crypt MAC verification (typically after `APP_KEY` rotation) must surface an actionable “re-enter key under AI Models / APP_KEY mismatch” message — never the raw “The MAC is invalid” string framed as a model-ID failure.
+2. Provider tool function names that contain dots or other characters outside `^[a-zA-Z0-9_-]+$` must be sanitized for DeepSeek and other OpenAI-compatible / Anthropic tool schemas, with a reversible mapping so ToolRegistry routing stays correct. Gemini may keep dotted names when the Gemini API allows them.
+3. Chat final messages for failed provider/credential runs must be visually distinct Error chips, and connection edit/test paths must allow recovering by pasting a fresh secret.
 
 ### 1.3.3 production readiness addendum
 

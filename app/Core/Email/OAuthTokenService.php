@@ -9,14 +9,14 @@ final class OAuthTokenService
 {
     public function accessToken(ConnectorConnection $connection): string
     {
-        $credentials = (array) $connection->credentials;
+        $credentials = $connection->decryptedCredentials();
         $token = (string) ($credentials['access_token'] ?? '');
         $expiresAt = (int) ($credentials['expires_at'] ?? 0);
         if ($token !== '' && ($expiresAt === 0 || $expiresAt > time() + 60)) return $token;
 
         return Cache::lock('enverif:oauth-refresh:' . $connection->id, 20)->block(5, function () use ($connection): string {
             $connection->refresh();
-            $credentials = (array) $connection->credentials;
+            $credentials = $connection->decryptedCredentials();
             $token = (string) ($credentials['access_token'] ?? '');
             $expiresAt = (int) ($credentials['expires_at'] ?? 0);
             if ($token !== '' && ($expiresAt === 0 || $expiresAt > time() + 60)) return $token;

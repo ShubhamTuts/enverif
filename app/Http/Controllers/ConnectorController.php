@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Core\Connectors\ConnectorConfigurationValidator;
 use App\Core\Connectors\ConnectorManager;
 use App\Models\ConnectorConnection;
+use App\Support\EncryptedCredentials;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -49,7 +50,15 @@ final class ConnectorController extends Controller
 
     public function test(ConnectorConnection $connector, ConnectorManager $manager)
     {
-        $ok = $manager->get($connector->driver)->test($connector);
+        try {
+            $ok = $manager->get($connector->driver)->test($connector);
+        } catch (\Throwable $e) {
+            $connector->update(['last_tested_at' => now(), 'last_test_status' => 'failed']);
+            $message = EncryptedCredentials::isDecryptFailure($e)
+                ? EncryptedCredentials::CONNECTOR_DECRYPT_MESSAGE
+                : (trim($e->getMessage()) ?: __('ui.connection_failed'));
+            return back()->with('error', $message);
+        }
         $connector->update(['last_tested_at' => now(), 'last_test_status' => $ok ? 'ok' : 'failed']);
         return back()->with($ok ? 'status' : 'error', $ok ? __('ui.connection_ok') : __('ui.connection_failed'));
     }
@@ -73,7 +82,18 @@ final class ConnectorController extends Controller
         $driver = $manager->get((string) $request->input('driver'));
         $submittedCredentials = (array) $request->input('credentials', []);
         $configuration = (array) $request->input('configuration', []);
-        $existingCredentials = (array) ($existing?->credentials ?? []);
+        $existingCredentials = [];
+        if ($existing) {
+            try {
+                $existingCredentials = $existing->decryptedCredentials();
+            } catch (\Throwable $e) {
+                if (! EncryptedCredentials::isDecryptFailure($e)) {
+                    throw $e;
+                }
+                // Allow recovery by re-entering secrets when APP_KEY changed.
+                $existingCredentials = [];
+            }
+        }
         $schema = $driver->configurationSchema();
 
         $missing = ConnectorConfigurationValidator::missing(

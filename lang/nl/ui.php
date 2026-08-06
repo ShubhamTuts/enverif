@@ -99,6 +99,7 @@ return [
     'base_url' => 'Basis-URL',
     'test' => 'Verbinding testen',
     'credential_kept' => 'Laat het geheim leeg om de bestaande waarde te behouden.',
+    'credential_kept_or_reenter' => 'Laat leeg om de bestaande sleutel te behouden. Bij een decrypt-/MAC-fout na een APP_KEY-wijziging: voer de API-sleutel opnieuw in en sla op.',
     'endpoint' => 'Endpoint',
     'protocol' => 'Protocolversie',
     'approve' => 'Goedkeuren',

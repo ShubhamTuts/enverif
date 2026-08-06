@@ -5,6 +5,7 @@ namespace App\Core\Models\Providers;
 use App\Core\Models\AttachmentPayload;
 use App\Core\Models\DTO\{ModelRequest, ModelResponse, ToolCall};
 use App\Core\Models\MessageNormalizer;
+use App\Core\Models\StrictFunctionNameMapper;
 use App\Models\ModelConnection;
 
 /**
@@ -43,9 +44,11 @@ final class OpenAIProvider extends AbstractHttpProvider
     public function complete(ModelConnection $connection, ModelRequest $request): ModelResponse
     {
         $base = rtrim($connection->base_url ?: 'https://api.openai.com', '/');
+        $mapper = new StrictFunctionNameMapper;
+        $tools = $mapper->sanitizeTools($request->tools);
         $messages = array_merge(
             [['role' => 'system', 'content' => $request->system]],
-            MessageNormalizer::openAi($request->messages),
+            $mapper->sanitizeOpenAiMessages(MessageNormalizer::openAi($request->messages)),
         );
 
         $attachmentContent = [];
@@ -90,8 +93,8 @@ final class OpenAIProvider extends AbstractHttpProvider
             };
         }
 
-        if ($request->tools) {
-            $payload['tools'] = $this->tools($request->tools);
+        if ($tools) {
+            $payload['tools'] = $this->tools($tools);
         }
 
         $res = $this->client($connection, ['Authorization' => 'Bearer '.$this->apiKey($connection)])
@@ -105,7 +108,7 @@ final class OpenAIProvider extends AbstractHttpProvider
             $args = json_decode((string) ($call['function']['arguments'] ?? '{}'), true);
             $calls[] = new ToolCall(
                 (string) ($call['id'] ?? uniqid('tool_', true)),
-                (string) ($call['function']['name'] ?? ''),
+                $mapper->original((string) ($call['function']['name'] ?? '')),
                 is_array($args) ? $args : [],
             );
         }

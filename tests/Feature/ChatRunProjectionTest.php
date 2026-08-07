@@ -20,8 +20,8 @@ final class ChatRunProjectionTest extends TestCase
 
         $parentAgent = $this->agent('Primary', 'primary');
         $childAgent = $this->agent('Sara', 'sara');
-        $parent = $this->run($parentAgent, null, 'waiting_child');
-        $child = $this->run($childAgent, $parent->id, 'awaiting_approval');
+        $parent = $this->makeRun($parentAgent, null, 'waiting_child');
+        $child = $this->makeRun($childAgent, $parent->id, 'awaiting_approval');
 
         $step = $child->steps()->create([
             'sequence' => 1,
@@ -67,7 +67,7 @@ final class ChatRunProjectionTest extends TestCase
         ]);
     }
 
-    private function run(Agent $agent, ?string $parentId, string $status): AgentRun
+    private function makeRun(Agent $agent, ?string $parentId, string $status): AgentRun
     {
         return AgentRun::create([
             'id' => (string) \Illuminate\Support\Str::uuid(),

@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="{{ asset('assets/runtime-ui.css') }}?v={{ rawurlencode($assetVersion) }}">
 <script>(()=>{const t=localStorage.getItem('enverif-theme')||'{{ auth()->user()->theme ?? 'system' }}';document.documentElement.dataset.theme=t==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):t})()</script>
 </head>
-<body class="@yield('body-class')">
+<body class="@yield('body-class')" data-runtime-feed-url="{{ route('runtime.feed') }}" data-runtime-workspace="{{ $currentWorkspace->id }}">
 @php
 $sidebarChats=\App\Models\ChatThread::where('user_id',auth()->id())->whereNull('archived_at')->orderByDesc('last_message_at')->limit(30)->get();
 $today=now()->startOfDay();
@@ -44,7 +44,7 @@ $nav=[
       @if(request()->routeIs('chat.*') && request()->filled('q'))<a href="{{ route('chat.index') }}" aria-label="Clear search">×</a>@endif
     </form>
     @if($sidebarChats->isNotEmpty())
-      <nav class="chat-history-nav">@foreach(['Today','Yesterday','Previous 7 days','Older'] as $group)@if(($sidebarGroups[$group]??collect())->isNotEmpty())<div class="chat-history-group">{{ $group }}</div>@foreach($sidebarGroups[$group] as $chat)<a href="{{ route('chat.show',$chat) }}" class="{{ request()->routeIs('chat.show') && request()->route('thread')?->id===$chat->id?'active':'' }}"><span class="chat-dot"></span><span class="truncate">{{ $chat->title }}</span></a>@endforeach @endif @endforeach</nav>
+      <nav class="chat-history-nav">@foreach(['Today','Yesterday','Previous 7 days','Older'] as $group)@if(($sidebarGroups[$group]??collect())->isNotEmpty())<div class="chat-history-group">{{ $group }}</div>@foreach($sidebarGroups[$group] as $chat)<a href="{{ route('chat.show',$chat) }}" data-chat-history-thread="{{ $chat->id }}" class="{{ request()->routeIs('chat.show') && request()->route('thread')?->id===$chat->id?'active':'' }}"><span class="chat-dot"></span><span class="truncate">{{ $chat->title }}</span></a>@endforeach @endif @endforeach</nav>
       <div class="chat-history-links"><a href="{{ route('chat.index',['archived'=>1]) }}">Archived</a></div>
     @endif
     <div class="nav-label">{{ __('ui.workspace') }}</div><nav class="nav agentic-nav">

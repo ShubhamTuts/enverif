@@ -38,9 +38,18 @@ final class ToolRegistry
         ] as $tool) $this->local[$tool->name()] = $tool;
     }
 
-    /** @param list<int> $extraConnectorIds @param list<array<string,mixed>>|null $attachedSnapshots @return list<array<string,mixed>> */
-    public function definitions(Agent $agent, array $extraConnectorIds = [], ?array $attachedSnapshots = null): array
-    {
+    /**
+     * @param list<int> $extraConnectorIds
+     * @param list<array<string,mixed>>|null $attachedSnapshots
+     * @param array<string,mixed>|null $agentSettingsSnapshot
+     * @return list<array<string,mixed>>
+     */
+    public function definitions(
+        Agent $agent,
+        array $extraConnectorIds = [],
+        ?array $attachedSnapshots = null,
+        ?array $agentSettingsSnapshot = null,
+    ): array {
         $defs = [];
         foreach ($this->local as $tool) {
             $defs[] = [
@@ -82,7 +91,15 @@ final class ToolRegistry
             }
         }
 
-        foreach (McpServer::where('workspace_id', $agent->workspace_id)->where('enabled', true)->get() as $server) {
+        $mcpIds = $this->effectiveMcpServerIds($agent, $agentSettingsSnapshot);
+        $mcpServers = $mcpIds === []
+            ? collect()
+            : McpServer::where('workspace_id', $agent->workspace_id)
+                ->where('enabled', true)
+                ->whereIn('id', $mcpIds)
+                ->get();
+
+        foreach ($mcpServers as $server) {
             try {
                 foreach ((new \App\Core\Mcp\McpClient($server))->tools() as $tool) {
                     $annotations = $tool['annotations'] ?? [];
@@ -98,16 +115,25 @@ final class ToolRegistry
                     ];
                 }
             } catch (\Throwable) {
-                // A temporarily unavailable MCP server should not prevent the agent from using other tools.
+                // An unavailable assigned MCP server must not block other tools.
             }
         }
         return $defs;
     }
 
-    /** @param list<int> $extraConnectorIds @param list<array<string,mixed>>|null $attachedSnapshots */
-    public function risk(Agent $agent, string $name, array $extraConnectorIds = [], ?array $attachedSnapshots = null): RiskLevel
-    {
-        foreach ($this->definitions($agent, $extraConnectorIds, $attachedSnapshots) as $definition) {
+    /**
+     * @param list<int> $extraConnectorIds
+     * @param list<array<string,mixed>>|null $attachedSnapshots
+     * @param array<string,mixed>|null $agentSettingsSnapshot
+     */
+    public function risk(
+        Agent $agent,
+        string $name,
+        array $extraConnectorIds = [],
+        ?array $attachedSnapshots = null,
+        ?array $agentSettingsSnapshot = null,
+    ): RiskLevel {
+        foreach ($this->definitions($agent, $extraConnectorIds, $attachedSnapshots, $agentSettingsSnapshot) as $definition) {
             if ($definition['name'] === $name) return RiskLevel::from($definition['risk']);
         }
         return RiskLevel::Destructive;
@@ -116,6 +142,7 @@ final class ToolRegistry
     public function execute(AgentRun $run, string $name, array $arguments): ToolExecutionResult
     {
         $step = $run->steps()->where('status', 'running')->where('tool', $name)->orderBy('sequence')->first();
+        $snapshotSettings = data_get($run->context, 'agent_snapshot.settings');
         $risk = $step && $step->risk_level
             ? RiskLevel::from((string) $step->risk_level)
             : $this->risk(
@@ -123,6 +150,7 @@ final class ToolRegistry
                 $name,
                 array_map('intval', (array) data_get($run->context, 'selected_connector_ids', [])),
                 (array) data_get($run->context, 'agent_snapshot.connectors', []),
+                is_array($snapshotSettings) ? $snapshotSettings : null,
             );
 
         if (!$this->isMutation($risk)) return $this->executeDirect($run, $name, $arguments);
@@ -188,10 +216,51 @@ final class ToolRegistry
 
         if (str_starts_with($name, 'mcp.')) {
             [, $serverId, $tool] = array_pad(explode('.', $name, 3), 3, null);
-            return ToolExecutionResult::success($this->mcp->call((int) $serverId, (string) $tool, $arguments));
+            $serverId = (int) $serverId;
+            $snapshotSettings = data_get($run->context, 'agent_snapshot.settings');
+            $allowedIds = $this->effectiveMcpServerIds(
+                $run->agent,
+                is_array($snapshotSettings) ? $snapshotSettings : null,
+            );
+            if (!in_array($serverId, $allowedIds, true)) {
+                return ToolExecutionResult::failure('MCP server is not assigned to this agent run.');
+            }
+            $server = McpServer::where('workspace_id', $run->workspace_id)->where('enabled', true)->find($serverId);
+            if (!$server) return ToolExecutionResult::failure('MCP server is unavailable in this workspace.');
+
+            return ToolExecutionResult::success($this->mcp->call($serverId, (string) $tool, $arguments));
         }
 
         return ToolExecutionResult::failure('Unknown tool: ' . $name);
+    }
+
+    /**
+     * Legacy agents without an explicit key retain their previous workspace-wide
+     * effective MCP access. New/edited agents store the key, including an empty list.
+     *
+     * @param array<string,mixed>|null $settingsSnapshot
+     * @return list<int>
+     */
+    private function effectiveMcpServerIds(Agent $agent, ?array $settingsSnapshot = null): array
+    {
+        $settings = $settingsSnapshot ?? (array) ($agent->settings ?? []);
+        if (array_key_exists('mcp_server_ids', $settings)) {
+            $requested = array_values(array_unique(array_map('intval', (array) $settings['mcp_server_ids'])));
+            if ($requested === []) return [];
+
+            return McpServer::where('workspace_id', $agent->workspace_id)
+                ->where('enabled', true)
+                ->whereIn('id', $requested)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        return McpServer::where('workspace_id', $agent->workspace_id)
+            ->where('enabled', true)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     private function isMutation(RiskLevel $risk): bool

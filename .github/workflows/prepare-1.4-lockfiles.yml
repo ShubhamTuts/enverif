@@ -1,0 +1,74 @@
+name: Prepare 1.4.0 Release Metadata
+
+on:
+  push:
+    branches:
+      - fix/enverif-1.4-production-hardening
+    paths:
+      - '.github/workflows/prepare-1.4-lockfiles.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/enverif-1.4-production-hardening
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
+          coverage: none
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Set 1.4.0 release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '1.4.0\n' > VERSION
+          python3 - <<'PY'
+          from pathlib import Path
+
+          readme = Path('README.md')
+          text = readme.read_text()
+          old = '## Enverif 1.3.9'
+          new = '## Enverif 1.4.0'
+          if old not in text:
+              raise SystemExit(f'Missing expected README release heading: {old}')
+          readme.write_text(text.replace(old, new, 1))
+
+          prd = Path('docs/PRODUCT-REQUIREMENTS.md')
+          text = prd.read_text()
+          old = '**Target release:** 1.3.9'
+          new = '**Target release:** 1.4.0'
+          if old not in text:
+              raise SystemExit(f'Missing expected PRD release target: {old}')
+          prd.write_text(text.replace(old, new, 1))
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text()
+          marker = '# Changelog\n'
+          if marker not in text:
+              raise SystemExit('Missing changelog heading')
+          section = '''# Changelog\n\n## 1.4.0 — 2026-08-07\n\n- Consolidates the complete chat-agent sales-orchestration branch with the subsequent production-hardening work into one release line.\n- Strengthens Enverif as a persistent AI sales-team workspace across agents, skills, plugins, workflows, leads, campaigns, schedules, approvals, files and durable run history.\n- Hardens shared-hosting installation/runtime behavior, including optional Redis handling and end-to-end installer/login/core-screen verification.\n- Improves chat orchestration, model/provider diagnostics, connector and mail capability lifecycle, workflow safety/observability, security boundaries and release verification.\n- Normalizes application-only CI/release packaging so internal marketing/documentation website assets are not required by the Enverif application build.\n- Adds deterministic dependency lockfiles and stable source/shared-hosting release package naming for reproducible 1.4.0 artifacts.\n- Repositions the project README around open-source AI sales employees for agencies and businesses, with the live Enverif workspace hero and outcome-driven examples.\n'''
+          changelog.write_text(text.replace(marker, section, 1))
+          PY
+      - name: Generate Composer lockfile
+        run: composer update --no-install --no-scripts --no-interaction --prefer-dist --no-progress
+      - name: Generate npm lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit deterministic release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'ShubhamTuts'
+          git config user.email '32325895+ShubhamTuts@users.noreply.github.com'
+          git add VERSION README.md docs/PRODUCT-REQUIREMENTS.md CHANGELOG.md composer.lock package-lock.json
+          git diff --cached --check
+          git commit -m 'release: prepare Enverif 1.4.0'
+          git push origin HEAD:fix/enverif-1.4-production-hardening

@@ -21,9 +21,7 @@ final class ChatStatusController extends Controller
         $run = $latestRunId !== '' ? AgentRun::with('agent')->find($latestRunId) : null;
         $terminal = $run && in_array((string) $run->status, ['completed', 'failed', 'cancelled'], true);
 
-        if ($run && $terminal) {
-            $materializer->materialize($run);
-        }
+        if ($run && $terminal) $materializer->materialize($run);
 
         $terminalMessagePresent = ! $run || ! $terminal || $materializer->isMaterialized($run);
         $busy = $run ? (! $terminal || ! $terminalMessagePresent) : false;
@@ -79,7 +77,7 @@ final class ChatStatusController extends Controller
             'title' => $thread->title,
             'busy' => $busy,
             'terminal_message_present' => $terminalMessagePresent,
-            'activity' => $run ? $projection->forRoot($run) : null,
+            'activity' => $run ? $projection->forRun((string) $run->id) : null,
             'run' => $run ? [
                 'id' => $run->id,
                 'status' => $run->status,

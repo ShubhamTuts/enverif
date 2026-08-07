@@ -5,6 +5,7 @@ namespace App\Core\Agents\Tools\FirstParty;
 use App\Core\Agents\Contracts\RiskLevel;
 use App\Core\Agents\Tools\Contracts\AgentTool;
 use App\Core\Agents\Tools\DTO\ToolExecutionResult;
+use App\Core\Sales\LeadContactNormalizer;
 use App\Models\AgentRun;
 use App\Models\Lead;
 
@@ -42,8 +43,8 @@ final class LeadUpsertTool implements AgentTool
         $lead = $this->upsert($run, $arguments);
 
         return ToolExecutionResult::success($lead->only([
-            'id', 'first_name', 'last_name', 'email', 'title', 'company', 'website',
-            'linkedin_url', 'status', 'score', 'source', 'source_url',
+            'id', 'first_name', 'last_name', 'email', 'phone', 'title', 'company', 'website',
+            'linkedin_url', 'status', 'outreach_readiness', 'score', 'source', 'source_url',
         ]));
     }
 
@@ -55,18 +56,13 @@ final class LeadUpsertTool implements AgentTool
         $allowed = array_flip((new Lead)->getFillable());
         unset($allowed['workspace_id']);
         $fields = array_intersect_key($arguments, $allowed);
+        $fields = app(LeadContactNormalizer::class)->normalize($fields);
 
-        foreach (['email', 'website', 'linkedin_url'] as $key) {
-            if (isset($fields[$key]) && is_string($fields[$key])) {
-                $fields[$key] = trim($fields[$key]);
-            }
+        foreach (['email', 'website', 'linkedin_url', 'phone'] as $key) {
+            if (isset($fields[$key]) && is_string($fields[$key])) $fields[$key] = trim($fields[$key]);
         }
-        if (! empty($fields['email'])) {
-            $fields['email'] = strtolower((string) $fields['email']);
-        }
-        if (isset($fields['score'])) {
-            $fields['score'] = max(0, min(100, (int) $fields['score']));
-        }
+        if (! empty($fields['email'])) $fields['email'] = strtolower((string) $fields['email']);
+        if (isset($fields['score'])) $fields['score'] = max(0, min(100, (int) $fields['score']));
 
         $lead = null;
         if ($id > 0) {
@@ -86,6 +82,8 @@ final class LeadUpsertTool implements AgentTool
         }
 
         if ($lead) {
+            $merged = array_merge($lead->only(['email', 'phone', 'linkedin_url', 'website']), $fields);
+            $fields['outreach_readiness'] = app(LeadContactNormalizer::class)->readiness($merged);
             $lead->update($fields);
             return $lead->refresh();
         }

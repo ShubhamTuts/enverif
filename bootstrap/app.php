@@ -9,6 +9,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'workspace' => UseWorkspace::class,
             'workspace.capability' => RequireWorkspaceCapability::class,
         ]);
+        // Tenant context must exist before implicit route-model binding queries any
+        // BelongsToWorkspace model. Authentication remains ahead of this middleware
+        // in Laravel's default priority list.
+        $middleware->prependToPriorityList(SubstituteBindings::class, UseWorkspace::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

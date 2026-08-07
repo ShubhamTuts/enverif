@@ -4,14 +4,38 @@ namespace App\Core\Connectors;
 
 use App\Core\Connectors\Contracts\ConnectorDriver;
 use App\Core\Plugins\{PluginPresentation,PluginRegistry};
+use App\Models\ConnectorConnection;
 
 final class ConnectorManager
 {
     /** @var array<string,ConnectorDriver> */
     private array $drivers=[];
-    public function __construct(private readonly PluginRegistry $plugins){$this->drivers=$plugins->connectorDrivers();}
-    public function get(string $id):ConnectorDriver{if(!isset($this->drivers[$id]))throw new \InvalidArgumentException("Unknown connector driver: {$id}");return $this->drivers[$id];}
+
+    public function __construct(private readonly PluginRegistry $plugins)
+    {
+        $this->drivers=$plugins->connectorDrivers();
+    }
+
+    public function get(string $id):ConnectorDriver
+    {
+        if(!isset($this->drivers[$id]))throw new \InvalidArgumentException("Unknown connector driver: {$id}");
+        return $this->drivers[$id];
+    }
+
     public function all():array{return $this->drivers;}
+
+    /** @return array<int,\App\Core\Connectors\DTO\ConnectorAction> */
+    public function actionsFor(ConnectorConnection $connection): array
+    {
+        $driver=$this->get($connection->driver);
+        if(method_exists($driver,'actionsForConnection')){
+            /** @var array<int,\App\Core\Connectors\DTO\ConnectorAction> $actions */
+            $actions=$driver->actionsForConnection($connection);
+            return $actions;
+        }
+        return $driver->actions();
+    }
+
     public function catalog():array
     {
         $out=[];
@@ -38,6 +62,7 @@ final class ConnectorManager
                     'description'=>$a->description,
                     'risk'=>$a->risk->value,
                     'parameters'=>$a->parameters,
+                    'capabilities'=>$a->capabilities,
                 ],$driver->actions()),
             ];
         }

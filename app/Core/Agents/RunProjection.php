@@ -99,12 +99,14 @@ final class RunProjection
     /** @param Collection<int,Approval> $approvals @return array<string,mixed> */
     private function runNode(AgentRun $run, Collection $approvals): array
     {
-        $agentName = (string) ($run->agent?->name ?: data_get($run->context, 'agent_snapshot.name', 'Agent'));
+        $agent = $run->agent;
+        $agentName = (string) ($agent?->name ?: data_get($run->context, 'agent_snapshot.name', 'Agent'));
         return [
             'id' => (string) $run->id,
             'parent_run_id' => $run->parent_run_id ? (string) $run->parent_run_id : null,
             'agent_id' => (int) $run->agent_id,
             'agent_name' => $agentName,
+            'agent_avatar_url' => $agent ? route('agents.avatar', $agent) : null,
             'status' => (string) $run->status,
             'stop_reason' => $run->stop_reason,
             'created_at' => $run->created_at?->toIso8601String(),

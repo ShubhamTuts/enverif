@@ -18,6 +18,16 @@
     if ($selectedImageKey === ':') {
         $selectedImageKey = '';
     }
+    $mcpServers = $mcpServers ?? collect();
+    $agentSettings = (array) ($agent->settings ?? []);
+    $mcpScopeConfigured = array_key_exists('mcp_server_ids', $agentSettings);
+    $legacyMcpIds = $agent->exists && ! $mcpScopeConfigured
+        ? $mcpServers->pluck('id')->map(fn ($id) => (int) $id)->all()
+        : [];
+    $defaultMcpIds = $mcpScopeConfigured
+        ? array_map('intval', (array) data_get($agentSettings, 'mcp_server_ids', []))
+        : $legacyMcpIds;
+    $selectedMcpIds = array_map('intval', (array) old('mcp_servers', $defaultMcpIds));
 @endphp
 <div class="page-head"><div><h1>{{ $agent->exists ? __('ui.edit').' '.$agent->name : __('ui.new_agent') }}</h1><p>{{ __('ui.agent_form_desc') }}</p></div><a class="btn" href="{{ $agent->exists ? route('agents.show',$agent) : route('agents.index') }}">{{ __('ui.cancel') }}</a></div>
 <form method="post" action="{{ $agent->exists ? route('agents.update',$agent) : route('agents.store') }}" class="grid grid-3" enctype="multipart/form-data" data-agent-model-catalog="{{ $agentModelCatalogJson }}">@csrf @if($agent->exists) @method('PUT') @endif
@@ -38,6 +48,7 @@
 <section class="card card-pad span-2"><h3 class="section-title">{{ __('ui.skills_connectors') }}</h3><div class="form-grid">
 <div class="form-group"><label class="form-label">{{ __('ui.skills') }}</label><div class="stack">@forelse($skills as $s)<label class="inline"><input type="checkbox" name="skills[]" value="{{ $s->id }}" @checked(in_array($s->id,old('skills',$agent->exists?$agent->skills()->pluck('skills.id')->all():[])))><span><strong>{{ $s->name }}</strong><span class="small muted"> · {{ $s->version }}</span></span></label>@empty<span class="muted">{{ __('ui.no_skills') }}</span>@endforelse</div></div>
 <div class="form-group"><label class="form-label">{{ __('ui.connectors') }}</label><div class="stack">@forelse($connectors as $c)<label class="inline"><input type="checkbox" name="connectors[]" value="{{ $c->id }}" @checked(in_array($c->id,old('connectors',$agent->exists?$agent->connectors()->pluck('connector_connections.id')->all():[])))><span><strong>{{ $c->name }}</strong><span class="small muted"> · {{ $c->driver }}</span></span></label>@empty<span class="muted">{{ __('ui.no_connectors') }}</span>@endforelse</div></div>
+<div class="form-group full"><input type="hidden" name="mcp_scope_present" value="1"><label class="form-label">MCP servers</label><div class="stack">@forelse($mcpServers as $server)<label class="inline"><input type="checkbox" name="mcp_servers[]" value="{{ $server->id }}" @checked(in_array((int)$server->id,$selectedMcpIds,true))><span><strong>{{ $server->name }}</strong><span class="small muted"> · {{ $server->transport }}</span></span></label>@empty<span class="muted">No enabled MCP servers are available in this workspace.</span>@endforelse</div><div class="help">Only selected MCP servers are exposed to this agent. Existing legacy agents initially show their currently available MCP servers selected; saving converts that access to an explicit allow-list.</div></div>
 </div></section>
 <aside class="card card-pad"><h3 class="section-title">{{ __('ui.capability_policy') }}</h3>
 <div class="switch-row"><div><div class="form-label">{{ __('ui.allow_external') }}</div><div class="help">{{ __('ui.research_external_help') }}</div></div><label class="switch"><input type="checkbox" name="allow_external_writes" value="1" @checked(old('allow_external_writes',data_get($agent->policy,'allow_external_writes',false)))><span></span></label></div>

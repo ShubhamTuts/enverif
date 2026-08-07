@@ -1,0 +1,38 @@
+name: Repair PHP 8.3 Composer Lock
+
+on:
+  push:
+    branches:
+      - fix/enverif-1.4-production-hardening
+    paths:
+      - '.github/workflows/repair-php83-lock.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/enverif-1.4-production-hardening
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
+          coverage: none
+      - name: Resolve dependencies for minimum supported PHP
+        run: composer update --no-install --no-scripts --no-interaction --prefer-dist --no-progress
+      - name: Commit compatible lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'ShubhamTuts'
+          git config user.email '32325895+ShubhamTuts@users.noreply.github.com'
+          git add composer.lock
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m 'build: lock Composer dependencies for PHP 8.3+'
+          git push origin HEAD:fix/enverif-1.4-production-hardening

@@ -4,15 +4,14 @@ namespace App\Models\Concerns;
 
 use App\Support\WorkspaceContext;
 use Illuminate\Database\Eloquent\Builder;
+use LogicException;
 
 /**
- * Applies the active workspace as a global Eloquent scope.
+ * Applies the active workspace as a fail-closed global Eloquent scope.
  *
- * Route binding intentionally delegates to Laravel's model implementation. This is
- * important for UUID models: Laravel's HasUuids/HasUniqueStringIds concern performs
- * UUID validation in resolveRouteBindingQuery(), while this global scope supplies the
- * workspace boundary. Defining resolveRouteBindingQuery() in this trait would collide
- * with HasUuids and can fatal at class composition time.
+ * Administrative code that intentionally crosses tenant boundaries must opt out with
+ * withoutGlobalScopes() and supply workspace_id explicitly. Normal tenant queries are
+ * never allowed to become unscoped merely because request/job context was forgotten.
  */
 trait BelongsToWorkspace
 {
@@ -20,18 +19,22 @@ trait BelongsToWorkspace
     {
         static::addGlobalScope('workspace', function (Builder $builder): void {
             $context = app(WorkspaceContext::class);
-            if ($context->has()) {
-                $builder->where(
-                    $builder->getModel()->qualifyColumn('workspace_id'),
-                    $context->id(),
-                );
-            }
+            $builder->where(
+                $builder->getModel()->qualifyColumn('workspace_id'),
+                $context->requireId(),
+            );
         });
 
         static::creating(function ($model): void {
             $context = app(WorkspaceContext::class);
-            if (!$model->workspace_id && $context->has()) {
-                $model->workspace_id = $context->id();
+
+            if (!$model->workspace_id) {
+                $model->workspace_id = $context->requireId();
+                return;
+            }
+
+            if ($context->has() && (int) $model->workspace_id !== $context->requireId()) {
+                throw new LogicException('Cannot create a tenant record for a different workspace than the active workspace context.');
             }
         });
     }

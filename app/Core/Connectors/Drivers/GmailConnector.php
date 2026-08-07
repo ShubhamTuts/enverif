@@ -79,6 +79,7 @@ final class GmailConnector extends AbstractConnector
                 if ($key !== '') $headers[$key] = trim((string) ($header['value'] ?? ''));
             }
             $body = $this->bodyText($payload);
+            $normalizedBody = Str::limit($body, 20000, '…');
             $messages[] = [
                 'id' => (string) ($message['id'] ?? ''),
                 'thread_id' => (string) ($message['threadId'] ?? $thread['id'] ?? ''),
@@ -93,7 +94,8 @@ final class GmailConnector extends AbstractConnector
                 'received_at' => isset($message['internalDate']) ? (string) $message['internalDate'] : null,
                 'unread' => in_array('UNREAD', (array) ($message['labelIds'] ?? []), true),
                 'snippet' => Str::limit(trim((string) ($message['snippet'] ?? '')), 1000, '…'),
-                'text' => Str::limit($body, 20000, '…'),
+                'body' => $normalizedBody,
+                'text' => $normalizedBody,
                 'html' => null,
                 'truncated' => mb_strlen($body) > 20000,
             ];

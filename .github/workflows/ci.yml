@@ -120,7 +120,8 @@ jobs:
           extensions: curl, intl, mbstring, openssl, pdo_mysql, zip, :redis
           coverage: none
       - name: Assert Redis extension is absent
-        run: php -r 'exit(extension_loaded("redis") ? 1 : 0);'
+        run: |
+          php -r 'exit(extension_loaded("redis") ? 1 : 0);'
       - name: Install PHP dependencies without Redis
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Bootstrap database runtime
@@ -231,4 +232,5 @@ jobs:
           fi
           exit $status
       - name: Validate workflow YAML
-        run: ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f, aliases: true); puts "OK #{f}" }'
+        run: |
+          ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f, aliases: true); puts "OK #{f}" }'

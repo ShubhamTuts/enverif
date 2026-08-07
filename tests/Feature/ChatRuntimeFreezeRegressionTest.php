@@ -6,21 +6,22 @@ use Tests\TestCase;
 
 final class ChatRuntimeFreezeRegressionTest extends TestCase
 {
-    public function test_chat_runtime_projection_does_not_observe_and_mutate_the_same_subtree(): void
+    public function test_chat_runtime_projection_filters_its_own_mutations_before_repainting(): void
     {
         $runtime = file_get_contents(resource_path('js/runtime-ui.js'));
-        $app = file_get_contents(resource_path('js/app.js'));
 
         self::assertIsString($runtime);
-        self::assertIsString($app);
 
         self::assertStringNotContainsString(
             "new MutationObserver(() => renderProjection()).observe(chatScroll, {childList:true, subtree:true})",
             $runtime,
-            'Runtime projection must not use a self-triggering subtree MutationObserver.'
+            'Runtime projection must not blindly repaint for every mutation in the subtree.'
         );
 
-        self::assertStringContainsString('enverif:chat-transcript-rendered', $app);
-        self::assertStringContainsString('enverif:chat-transcript-rendered', $runtime);
+        self::assertStringContainsString(
+            "target.closest('[data-runtime-approval-stack], [data-chat-inline-activity]')",
+            $runtime,
+            'Runtime projection must ignore mutations caused by its own approval/activity mounts.'
+        );
     }
 }

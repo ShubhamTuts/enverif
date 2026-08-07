@@ -46,7 +46,9 @@ fail() {
 
 start_server() {
   : > "$SERVER_LOG"
-  php artisan serve --host=127.0.0.1 --port="$PORT" >"$SERVER_LOG" 2>&1 &
+  # The installer intentionally rewrites .env. Disable Laravel's development
+  # server auto-reload so the active POST is not terminated mid-response.
+  php artisan serve --no-reload --host=127.0.0.1 --port="$PORT" >"$SERVER_LOG" 2>&1 &
   SERVER_PID=$!
   for _ in $(seq 1 40); do
     if curl -fsS "$BASE_URL/install" >/dev/null 2>&1; then

@@ -11,6 +11,7 @@ use App\Models\ChatThread;
 use App\Models\ModelConnection;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\WorkspaceContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\UploadedFile;
@@ -214,6 +215,7 @@ final class ChatHttpTest extends TestCase
 
         $response->assertStatus(202);
         $thread = ChatThread::withoutGlobalScopes()->findOrFail((int) $response->json('thread_id'));
+        app(WorkspaceContext::class)->set($this->workspace->id);
         $attachment = $thread->attachments()->firstOrFail();
         Storage::disk('local')->assertExists($attachment->path);
 

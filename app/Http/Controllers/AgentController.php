@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Core\Agents\AgentOrchestrator;
 use App\Core\Models\ProviderManager;
 use App\Core\Runtime\WebQueueKick;
-use App\Models\{Agent, ConnectorConnection, ModelConnection, Skill};
+use App\Models\{Agent, ConnectorConnection, McpServer, ModelConnection, Skill};
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -91,7 +91,6 @@ final class AgentController extends Controller
         $queueKick->afterResponse();
         return redirect()->route('runs.show', $run);
     }
-
 
     public function avatar(Agent $agent)
     {
@@ -178,8 +177,6 @@ final class AgentController extends Controller
         $imageKey = trim((string) $request->input('creative_image_model_key', ''));
         $imageConnectionId = null;
         $imageModel = '';
-        // Prefer ":" — Blade treats "|" inside @directives as a filter and 500s the agent form.
-        // Accept legacy "|" keys from earlier 1.3.8 builds.
         if ($imageKey !== '' && (str_contains($imageKey, ':') || str_contains($imageKey, '|'))) {
             $separator = str_contains($imageKey, ':') ? ':' : '|';
             [$imageConnectionId, $imageModel] = array_pad(explode($separator, $imageKey, 2), 2, '');
@@ -193,9 +190,8 @@ final class AgentController extends Controller
                 $imageModel = '';
             }
         }
-        $creative = [
+        $current['creative'] = [
             'enabled' => $creativeEnabled,
-            // BC: older builds treated image_generation as the creative/social toggle.
             'image_generation' => $creativeEnabled,
             'image_connection_id' => $imageConnectionId,
             'image_model' => $imageModel,
@@ -206,7 +202,12 @@ final class AgentController extends Controller
             'default_buffer_channel_id' => trim((string) $request->input('creative_buffer_channel_id', '')),
             'default_slack_channel' => trim((string) $request->input('creative_slack_channel', '')),
         ];
-        $current['creative'] = $creative;
+
+        // Agent forms explicitly own MCP scope. Absence of this key on legacy agents
+        // retains the pre-1.4 behavior until the agent is edited and saved.
+        if ($request->boolean('mcp_scope_present')) {
+            $current['mcp_server_ids'] = $this->mcpServerIds($request);
+        }
 
         return $current;
     }
@@ -226,7 +227,6 @@ final class AgentController extends Controller
                 ];
             }
         }
-
         return $out;
     }
 
@@ -249,6 +249,7 @@ final class AgentController extends Controller
             'imageModelOptions' => $this->imageModelOptions(),
             'skills' => Skill::where(fn ($q) => $q->whereNull('workspace_id')->orWhere('workspace_id', session('workspace_id')))->where('status', 'active')->get(),
             'connectors' => ConnectorConnection::where('enabled', true)->get(),
+            'mcpServers' => McpServer::where('enabled', true)->orderBy('name')->get(),
         ];
     }
 
@@ -265,6 +266,25 @@ final class AgentController extends Controller
             throw ValidationException::withMessages(['model_connection_id' => 'The selected model connection is unavailable in this workspace.']);
         }
         return [$validSkills, $validConnectors];
+    }
+
+    /** @return list<int> */
+    private function mcpServerIds(Request $request): array
+    {
+        $requested = array_values(array_unique(array_map('intval', (array) $request->input('mcp_servers', []))));
+        if ($requested === []) return [];
+
+        $valid = McpServer::whereIn('id', $requested)
+            ->where('enabled', true)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (count($valid) !== count($requested)) {
+            throw ValidationException::withMessages(['mcp_servers' => 'One or more selected MCP servers are unavailable in this workspace.']);
+        }
+
+        return array_values($valid);
     }
 
     private function slug(string $name): string

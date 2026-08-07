@@ -9,9 +9,14 @@ DirectoryIndex public/index.php
     RewriteRule (^|/)\.(?:git|github)(?:/|$) - [F,L,NC]
     RewriteRule (^|/)\.(?!well-known(?:/|$))[^/]+(?:/|$) - [F,L,NC]
     RewriteRule (^|/)(artisan|phpunit\.xml|composer\.(?:json|lock)|package(?:-lock)?\.json|vite\.config\.js)$ - [F,L,NC]
-    # Block URL namespaces that are exclusively private application directories. Do not
-    # blanket-block plugins/ or skills/ here because those are also legitimate Laravel
-    # application routes; non-public requests are still fronted through public/ below.
+
+    # skills/ and plugins/ are both private source directories and Laravel URL namespaces.
+    # Route those namespaces directly through the public front controller before Apache can
+    # descend into the physical directories. Laravel then decides whether the URL exists and
+    # whether the authenticated workspace user may access it.
+    RewriteRule ^(?:skills|plugins)(?:/.*)?$ public/index.php [L,NC]
+
+    # Block URL namespaces that are exclusively private application directories.
     RewriteRule ^(?:app|bootstrap|config|database|lang|resources|routes|storage|tests|vendor)/ - [F,L,NC]
 
     # If public/ is already in the request, do not recursively prefix it again.

@@ -19,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(prepend: [PrepareInstallerRuntime::class], append: [SetLocale::class]);
+        $middleware->validateCsrfTokens(except: [
+            'hooks/workflows/*',
+        ]);
         $middleware->alias([
             'installed' => EnsureInstalled::class,
             'workspace' => UseWorkspace::class,

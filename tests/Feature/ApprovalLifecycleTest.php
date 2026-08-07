@@ -68,9 +68,12 @@ final class ApprovalLifecycleTest extends TestCase
             ->post('/chats/'.$thread->id.'/stop')
             ->assertRedirect();
 
-        self::assertSame('cancelled', $run->fresh()->status);
-        self::assertSame('denied', $approval->fresh()->status);
-        self::assertNotNull($approval->fresh()->decided_at);
-        self::assertSame(0, Approval::where('status', 'pending')->count());
+        $storedRun = AgentRun::withoutGlobalScopes()->findOrFail($run->id);
+        $storedApproval = Approval::withoutGlobalScopes()->findOrFail($approval->id);
+
+        self::assertSame('cancelled', $storedRun->status);
+        self::assertSame('denied', $storedApproval->status);
+        self::assertNotNull($storedApproval->decided_at);
+        self::assertSame(0, Approval::withoutGlobalScopes()->where('workspace_id', $workspace->id)->where('status', 'pending')->count());
     }
 }

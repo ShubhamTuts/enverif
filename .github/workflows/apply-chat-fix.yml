@@ -1,0 +1,143 @@
+name: Apply focused chat source patch
+
+on:
+  push:
+    branches: [fix/chat-agent-sales-orchestration-20260807]
+    paths: ['.github/workflows/apply-chat-fix.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/chat-agent-sales-orchestration-20260807
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply exact source fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          controller = Path('app/Http/Controllers/ChatController.php')
+          text = controller.read_text()
+          old = '''    /** @param array<string,mixed> $data @return array{0:?ModelConnection,1:?string} */
+              private function resolveModelSelection(array $data, ?ChatThread $thread, Agent $agent): array
+              {
+                  $connectionId = (int) ($data['model_connection_id'] ?? $thread?->default_model_connection_id ?: $agent->model_connection_id ?: 0);
+                  $connection = $connectionId > 0 ? ModelConnection::whereKey($connectionId)->where('enabled', true)->first() : null;
+                  if ($connectionId > 0 && !$connection) throw ValidationException::withMessages(['model_connection_id' => 'The selected model connection is unavailable in this workspace.']);
+          
+                  // Fall back to any enabled connection in the workspace
+                  if (!$connection) {
+                      $connection = ModelConnection::where('workspace_id', $agent->workspace_id)->where('enabled', true)->first();
+                  }
+          
+                  $submitted = array_key_exists('model', $data);
+                  $model = $submitted ? trim((string) ($data['model'] ?? '')) : trim((string) ($thread?->default_model ?: ''));
+                  if ($model === '__custom__') {
+                      $model = trim((string) ($data['custom_model'] ?? ''));
+                      if ($model === '') throw ValidationException::withMessages(['custom_model' => 'Enter the custom model ID.']);
+                  }
+                  if ($model === '' && $connection) $model = $connection->default_model ?: ($this->providers->get($connection->provider)->models()[0] ?? null);
+                  if ($model !== '' && $connection && $submitted && !in_array($model, $this->providers->get($connection->provider)->models(), true) && trim((string) ($data['custom_model'] ?? '')) === '') {
+                      // Custom model ID entered inline — allow it through rather than blocking
+                      $model = $model;
+                  }
+                  return [$connection, $model !== '' ? $model : null];
+              }
+          '''.replace('          ', '')
+          new = '''    /** @param array<string,mixed> $data @return array{0:?ModelConnection,1:?string} */
+              private function resolveModelSelection(array $data, ?ChatThread $thread, Agent $agent): array
+              {
+                  $threadAgentId = (int) ($thread?->default_agent_id ?: $thread?->agent_id ?: 0);
+                  $agentChanged = $thread !== null && $threadAgentId > 0 && $threadAgentId !== (int) $agent->id;
+                  $connectionSubmitted = array_key_exists('model_connection_id', $data);
+                  $submittedConnectionId = (int) ($data['model_connection_id'] ?? 0);
+          
+                  if ($connectionSubmitted && $submittedConnectionId > 0) {
+                      $connectionId = $submittedConnectionId;
+                  } elseif ($agentChanged || !$thread) {
+                      $connectionId = (int) ($agent->model_connection_id ?: 0);
+                  } else {
+                      $connectionId = (int) ($thread?->default_model_connection_id ?: $agent->model_connection_id ?: 0);
+                  }
+          
+                  $connection = $connectionId > 0 ? ModelConnection::whereKey($connectionId)->where('enabled', true)->first() : null;
+                  if ($connectionId > 0 && !$connection) throw ValidationException::withMessages(['model_connection_id' => 'The selected model connection is unavailable in this workspace.']);
+                  if (!$connection) {
+                      $connection = ModelConnection::where('workspace_id', $agent->workspace_id)->where('enabled', true)->first();
+                  }
+          
+                  $modelSubmitted = array_key_exists('model', $data);
+                  if ($modelSubmitted) {
+                      $model = trim((string) ($data['model'] ?? ''));
+                  } elseif ($agentChanged || !$thread) {
+                      $model = trim((string) ($agent->model ?: ''));
+                  } else {
+                      $model = trim((string) ($thread?->default_model ?: $agent->model ?: ''));
+                  }
+                  if ($model === '__custom__') {
+                      $model = trim((string) ($data['custom_model'] ?? ''));
+                      if ($model === '') throw ValidationException::withMessages(['custom_model' => 'Enter the custom model ID.']);
+                  }
+                  if ($model === '' && $connection) {
+                      $model = $connection->default_model ?: ($this->providers->get($connection->provider)->models()[0] ?? null);
+                  }
+                  return [$connection, $model !== '' ? $model : null];
+              }
+          '''.replace('          ', '')
+          if old not in text:
+              raise SystemExit('ChatController selection block did not match expected source')
+          controller.write_text(text.replace(old, new, 1))
+
+          for name in ['resources/js/app.js', 'public/assets/app.js']:
+              path = Path(name)
+              js = path.read_text(encoding='utf-8-sig')
+              old_js = """        showError('');
+                  setBusy(true);
+                  // Preserve composer chrome height while the request is in flight.
+                  form.style.minHeight = `${Math.max(form.offsetHeight, 88)}px`;
+          
+                  try {
+                      const response = await fetch(form.action, {
+                          method: 'POST',
+                          body: new FormData(form),
+          """.replace('          ', '')
+              new_js = """        showError('');
+                  const payload = new FormData(form);
+                  setBusy(true);
+                  // Preserve composer chrome height while the request is in flight.
+                  form.style.minHeight = `${Math.max(form.offsetHeight, 88)}px`;
+          
+                  try {
+                      const response = await fetch(form.action, {
+                          method: 'POST',
+                          body: payload,
+          """.replace('          ', '')
+              if old_js not in js:
+                  raise SystemExit(f'{name} chat submit block did not match expected source')
+              path.write_text(js.replace(old_js, new_js, 1), encoding='utf-8')
+
+          Path('.github/workflows/apply-chat-fix.yml').unlink()
+      - name: Verify focused patch syntax and regression
+        run: |
+          php -l app/Http/Controllers/ChatController.php
+          node --check resources/js/app.js
+          node --check public/assets/app.js
+          node --test tests/js/chat-composer.test.mjs
+          cmp resources/js/app.js public/assets/app.js
+      - name: Commit focused patch and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Enverif CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/Http/Controllers/ChatController.php resources/js/app.js public/assets/app.js .github/workflows/apply-chat-fix.yml
+          git commit -m 'fix: preserve selected chat agent and model defaults'
+          git push origin HEAD:fix/chat-agent-sales-orchestration-20260807

@@ -103,6 +103,7 @@
             <img src="{{ asset('assets/enverif-mark.svg') }}" alt="">
             <div class="chat-thinking-copy">
                 <strong data-chat-stage>{{ $thread->defaultAgent?->name ?? __('ui.agent') }} {{ __('ui.is_working') }}</strong>
+                <small>Live activity appears below as agents and tools progress.</small>
             </div>
             <span></span><span></span><span></span>
             <form method="post" action="{{ route('chat.stop', $thread) }}">
@@ -111,4 +112,7 @@
             </form>
         </div>
     @endif
+
+    <div class="chat-inline-runtime" data-chat-inline-activity hidden aria-live="polite"></div>
+    <div class="runtime-approval-stack" data-runtime-approval-stack hidden></div>
 @endif

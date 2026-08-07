@@ -2,13 +2,15 @@
 
 namespace App\Core\Runtime;
 
-use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 
 final class TickRunner
 {
-    public function __construct(private readonly RuntimeHealth $health) {}
+    public function __construct(
+        private readonly RuntimeHealth $health,
+        private readonly RunRecovery $recovery,
+    ) {}
 
     /** @return array{ok:bool,skipped:bool,duration_ms:int,queue_output:string,schedule_output:string} */
     public function run(?int $budgetSeconds = null): array
@@ -22,6 +24,11 @@ final class TickRunner
         }
 
         try {
+            // Recover durable runs whose continuation was lost before draining the
+            // queues. Job uniqueness and per-run execution locks make this safe if
+            // an original continuation is merely delayed rather than lost.
+            $this->recovery->recover();
+
             Artisan::call('enverif:schedules:due');
             $scheduleOutput = trim(Artisan::output());
 

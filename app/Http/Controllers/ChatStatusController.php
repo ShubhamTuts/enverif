@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Core\Agents\RunProjection;
 use App\Core\Chat\ChatRunMaterializer;
 use App\Models\{AgentRun, ChatAttachment, ChatMessage, ChatThread};
 use Illuminate\Http\Request;
@@ -13,7 +12,6 @@ final class ChatStatusController extends Controller
         Request $request,
         ChatThread $thread,
         ChatRunMaterializer $materializer,
-        RunProjection $projection,
     ) {
         abort_unless((int) $thread->user_id === (int) $request->user()->id, 403);
 
@@ -21,24 +19,38 @@ final class ChatStatusController extends Controller
         $run = $latestRunId !== '' ? AgentRun::with('agent')->find($latestRunId) : null;
         $terminal = $run && in_array((string) $run->status, ['completed', 'failed', 'cancelled'], true);
 
-        if ($run && $terminal) $materializer->materialize($run);
+        if ($run && $terminal) {
+            $materializer->materialize($run);
+        }
 
         $terminalMessagePresent = (bool) ($run && $terminal && $materializer->isMaterialized($run));
         $busy = $run ? (! $terminal || ! $terminalMessagePresent) : false;
-        $latestStep = $run?->steps()->latest('sequence')->first();
         $agentName = (string) ($run?->agent?->name ?: data_get($run?->context, 'agent_snapshot.name', 'Agent'));
-        $stage = '';
-        if ($run && $busy) {
+
+        // Active chat polling is deliberately small. The dedicated /activity endpoint
+        // owns run-tree/tool/approval projection, so /status must not repeat that work
+        // or reload the entire transcript every ~900ms.
+        if ($busy) {
+            $latestStep = $run?->steps()->latest('sequence')->first();
             $tool = trim((string) ($latestStep?->tool ?? ''));
             $stepType = trim((string) ($latestStep?->type ?? ''));
             $stage = match (true) {
-                $run->status === 'awaiting_approval' => $agentName.' needs approval',
+                $run?->status === 'awaiting_approval' => $agentName.' needs approval',
                 $tool !== '' => 'Using '.$tool,
                 $stepType === 'model' => $agentName.' is thinking…',
-                $run->status === 'waiting_child' => $agentName.' is waiting on a sub-agent…',
-                $run->status === 'queued' => $agentName.' is queued…',
+                $run?->status === 'waiting_child' => $agentName.' is waiting on a sub-agent…',
+                $run?->status === 'queued' => $agentName.' is queued…',
                 default => $agentName.' is working…',
             };
+
+            return response()->json([
+                'transcript_html' => null,
+                'transcript_version' => null,
+                'title' => $thread->title,
+                'busy' => true,
+                'terminal_message_present' => false,
+                'run' => $run ? $this->runPayload($run, $agentName, $stage) : null,
+            ]);
         }
 
         $thread = $thread->fresh()->load(['messages.attachments', 'defaultAgent']);
@@ -69,25 +81,30 @@ final class ChatStatusController extends Controller
 
         return response()->json([
             'messages' => $messages,
-            'transcript_html' => $busy ? null : view('chat._transcript', [
+            'transcript_html' => view('chat._transcript', [
                 'thread' => $thread,
                 'user' => $request->user(),
             ])->render(),
             'transcript_version' => $transcriptVersion,
             'title' => $thread->title,
-            'busy' => $busy,
+            'busy' => false,
             'terminal_message_present' => $terminalMessagePresent,
-            'activity' => $run ? $projection->forRun((string) $run->id) : null,
-            'run' => $run ? [
-                'id' => $run->id,
-                'status' => $run->status,
-                'output' => $run->output,
-                'stop_reason' => $run->stop_reason,
-                'execution' => data_get($run->context, 'execution'),
-                'agent_name' => $agentName,
-                'stage' => $stage,
-                'url' => route('runs.show', $run),
-            ] : null,
+            'run' => $run ? $this->runPayload($run, $agentName, '') : null,
         ]);
+    }
+
+    /** @return array<string,mixed> */
+    private function runPayload(AgentRun $run, string $agentName, string $stage): array
+    {
+        return [
+            'id' => $run->id,
+            'status' => $run->status,
+            'output' => $run->output,
+            'stop_reason' => $run->stop_reason,
+            'execution' => data_get($run->context, 'execution'),
+            'agent_name' => $agentName,
+            'stage' => $stage,
+            'url' => route('runs.show', $run),
+        ];
     }
 }

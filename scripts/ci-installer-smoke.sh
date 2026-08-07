@@ -111,6 +111,16 @@ apache_rewrite_probe() {
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y apache2 >/dev/null
   fi
 
+  # GitHub-hosted runners keep /home/runner/work non-searchable by Apache's www-data
+  # user. Shared hosts do not have that ownership mismatch, so make only directory
+  # traversal/runtime-write permissions representative before exercising .htaccess.
+  local parent="$ROOT"
+  while [[ "$parent" != "/" ]]; do
+    sudo chmod o+x "$parent"
+    parent="$(dirname "$parent")"
+  done
+  sudo chmod -R a+rwX "$ROOT/storage" "$ROOT/bootstrap/cache"
+
   sudo a2enmod rewrite >/dev/null
   printf 'Listen 127.0.0.1:%s\n' "$APACHE_PORT" | sudo tee "$APACHE_PORT_CONF" >/dev/null
   sudo tee "$APACHE_SITE" >/dev/null <<EOF

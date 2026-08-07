@@ -73,7 +73,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
             'status' => 'running',
             'content' => 'Finish this task.',
         ]);
-        $run = $this->run([
+        $run = $this->makeRun([
             'chat_message_id' => $userMessage->id,
             'conversation_id' => $thread->id,
         ]);
@@ -108,7 +108,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
             'status' => 'running',
             'content' => 'Delegate this.',
         ]);
-        $parent = $this->run(['chat_message_id' => $userMessage->id, 'conversation_id' => $thread->id], 'waiting_child');
+        $parent = $this->makeRun(['chat_message_id' => $userMessage->id, 'conversation_id' => $thread->id], 'waiting_child');
         $userMessage->update(['run_id' => $parent->id]);
         $childAgent = Agent::create([
             'workspace_id' => $this->workspace->id,
@@ -182,7 +182,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
             'status' => 'running',
             'content' => 'Keep working.',
         ]);
-        $run = $this->run(['chat_message_id' => $message->id, 'conversation_id' => $thread->id]);
+        $run = $this->makeRun(['chat_message_id' => $message->id, 'conversation_id' => $thread->id]);
         $message->update(['run_id' => $run->id]);
 
         $this->actingAs($this->user)
@@ -197,7 +197,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
     public function test_schedule_tool_is_discoverable_and_persists_a_real_recurring_schedule(): void
     {
         Queue::fake();
-        $run = $this->run();
+        $run = $this->makeRun();
         $registry = app(ToolRegistry::class);
         $names = collect($registry->definitions($this->agent))->pluck('name')->all();
         self::assertContains('schedules.upsert', $names);
@@ -225,7 +225,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
 
     public function test_lead_upsert_normalizes_verified_contact_data_and_campaign_does_not_queue_an_unreachable_email_recipient(): void
     {
-        $run = $this->run();
+        $run = $this->makeRun();
         $leadResult = (new LeadUpsertTool)->execute($run, [
             'company' => 'Example Electrical',
             'status' => 'qualified',
@@ -281,7 +281,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
     }
 
     /** @param array<string,mixed> $context */
-    private function run(array $context = [], string $status = 'running'): AgentRun
+    private function makeRun(array $context = [], string $status = 'running'): AgentRun
     {
         return AgentRun::create([
             'workspace_id' => $this->workspace->id,

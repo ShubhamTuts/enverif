@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Core\Agents\Tools\ToolRegistry;
-use App\Models\{Agent, AgentRun, McpServer, Workspace};
+use App\Models\{Agent, AgentRun, McpServer, User, Workspace};
 use App\Support\WorkspaceContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\{Hash, Http};
 use Tests\TestCase;
 
 final class AgentMcpScopeTest extends TestCase
@@ -14,6 +14,7 @@ final class AgentMcpScopeTest extends TestCase
     use RefreshDatabase;
 
     private Workspace $workspace;
+    private User $user;
     private Agent $agent;
 
     protected function setUp(): void
@@ -25,6 +26,12 @@ final class AgentMcpScopeTest extends TestCase
             'timezone' => 'UTC',
             'locale' => 'en',
         ]);
+        $this->user = User::create([
+            'name' => 'MCP Owner',
+            'email' => 'mcp-owner@example.test',
+            'password' => Hash::make('password'),
+        ]);
+        $this->user->workspaces()->attach($this->workspace->id, ['role' => 'owner']);
         app(WorkspaceContext::class)->set($this->workspace->id);
         $this->agent = Agent::create([
             'workspace_id' => $this->workspace->id,
@@ -32,6 +39,7 @@ final class AgentMcpScopeTest extends TestCase
             'slug' => 'scoped-agent',
             'instructions' => 'Use only assigned capabilities.',
             'status' => 'active',
+            'default_effort' => 'standard',
             'max_steps' => 20,
             'max_runtime_seconds' => 300,
             'max_cost_usd' => 2,
@@ -96,6 +104,33 @@ final class AgentMcpScopeTest extends TestCase
         self::assertContains('mcp.'.$allowed->id.'.repo.read', $names);
         self::assertNotContains('mcp.'.$blocked->id.'.repo.read', $names);
         Http::assertSentCount(1);
+    }
+
+    public function test_agent_editor_persists_an_explicit_mcp_allow_list(): void
+    {
+        $allowed = $this->server('Editor Allowed MCP');
+        $this->server('Editor Blocked MCP', 'https://1.0.0.1/editor-blocked');
+
+        $this->actingAs($this->user)
+            ->withSession(['workspace_id' => $this->workspace->id])
+            ->put('/agents/'.$this->agent->id, [
+                'name' => $this->agent->name,
+                'description' => '',
+                'instructions' => $this->agent->instructions,
+                'status' => 'active',
+                'model_connection_id' => '',
+                'model' => '',
+                'default_effort' => 'standard',
+                'max_steps' => 20,
+                'max_runtime_seconds' => 300,
+                'max_cost_usd' => 2,
+                'mcp_scope_present' => '1',
+                'mcp_servers' => [$allowed->id],
+            ])
+            ->assertRedirect();
+
+        $settings = (array) Agent::withoutGlobalScopes()->findOrFail($this->agent->id)->settings;
+        self::assertSame([$allowed->id], array_map('intval', (array) ($settings['mcp_server_ids'] ?? [])));
     }
 
     public function test_run_snapshot_rejects_direct_mcp_execution_outside_allowed_scope(): void

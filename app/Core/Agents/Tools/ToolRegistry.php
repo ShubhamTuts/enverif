@@ -33,9 +33,7 @@ final class ToolRegistry
             new MemorySearchTool,
             new MemoryRememberTool,
             new MemoryForgetTool,
-        ] as $tool) {
-            $this->local[$tool->name()] = $tool;
-        }
+        ] as $tool) $this->local[$tool->name()] = $tool;
     }
 
     /** @param list<int> $extraConnectorIds @param list<array<string,mixed>>|null $attachedSnapshots @return list<array<string,mixed>> */
@@ -48,6 +46,7 @@ final class ToolRegistry
                 'description' => $tool->description(),
                 'risk' => $tool->risk()->value,
                 'parameters' => ToolSchemaNormalizer::parameters($tool->parameters()),
+                'capabilities' => [],
             ];
         }
 
@@ -70,13 +69,12 @@ final class ToolRegistry
             ? ConnectorConnection::where('workspace_id', $agent->workspace_id)->where('enabled', true)->whereIn('id', array_map('intval', $extraConnectorIds))->get()
             : collect();
         foreach ($attached->concat($extra)->unique('id') as $connection) {
-            $driver = $this->connectors->get($connection->driver);
             $isExtra = in_array((int) $connection->id, array_map('intval', $extraConnectorIds), true);
             $allowed = $attachedSnapshots !== null && !$isExtra
                 ? ($snapshotAllowed[(int) $connection->id] ?? null)
                 : $connection->pivot?->allowed_actions;
             if (is_string($allowed)) $allowed = json_decode($allowed, true);
-            foreach ($driver->actions() as $action) {
+            foreach ($this->connectors->actionsFor($connection) as $action) {
                 if (is_array($allowed) && $allowed !== [] && !in_array($action->name, $allowed, true)) continue;
                 $defs[] = $action->toTool('connector.' . $connection->id);
             }
@@ -94,6 +92,7 @@ final class ToolRegistry
                         'description' => (string) ($tool['description'] ?? 'MCP tool'),
                         'risk' => $risk->value,
                         'parameters' => ToolSchemaNormalizer::parameters($tool['inputSchema'] ?? null),
+                        'capabilities' => [],
                     ];
                 }
             } catch (\Throwable) {
@@ -114,11 +113,7 @@ final class ToolRegistry
 
     public function execute(AgentRun $run, string $name, array $arguments): ToolExecutionResult
     {
-        $step = $run->steps()
-            ->where('status', 'running')
-            ->where('tool', $name)
-            ->orderBy('sequence')
-            ->first();
+        $step = $run->steps()->where('status', 'running')->where('tool', $name)->orderBy('sequence')->first();
         $risk = $step && $step->risk_level
             ? RiskLevel::from((string) $step->risk_level)
             : $this->risk(
@@ -128,9 +123,7 @@ final class ToolRegistry
                 (array) data_get($run->context, 'agent_snapshot.connectors', []),
             );
 
-        if (!$this->isMutation($risk)) {
-            return $this->executeDirect($run, $name, $arguments);
-        }
+        if (!$this->isMutation($risk)) return $this->executeDirect($run, $name, $arguments);
 
         $stepKey = $step ? (string) $step->id : 'tool-' . hash('sha256', $name . '|' . json_encode($arguments, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         $normalized = $this->externalActions->execute(
@@ -180,13 +173,13 @@ final class ToolRegistry
                 }
             }
             $tagged = in_array($connectorId, $allowedIds, true);
-            if (!$attached && !$tagged) {
-                return ToolExecutionResult::failure('Connector is not attached to this agent or explicitly tagged for this run.');
-            }
+            if (!$attached && !$tagged) return ToolExecutionResult::failure('Connector is not attached to this agent or explicitly tagged for this run.');
             if ($attached && !$tagged && is_array($attachedAllowed) && $attachedAllowed !== [] && !in_array((string) $action, $attachedAllowed, true)) {
                 return ToolExecutionResult::failure('Connector action is not allowed by this agent run snapshot.');
             }
             $connection = ConnectorConnection::where('workspace_id', $run->workspace_id)->where('enabled', true)->findOrFail($connectorId);
+            $available = collect($this->connectors->actionsFor($connection))->contains(fn ($candidate) => $candidate->name === (string) $action);
+            if (!$available) return ToolExecutionResult::failure('Connector action is unavailable for the current connection configuration.');
             $result = $this->connectors->get($connection->driver)->execute($connection, (string) $action, $arguments);
             return new ToolExecutionResult($result->ok, $result->data, $result->message);
         }
@@ -201,11 +194,6 @@ final class ToolRegistry
 
     private function isMutation(RiskLevel $risk): bool
     {
-        return in_array($risk, [
-            RiskLevel::InternalWrite,
-            RiskLevel::ExternalWrite,
-            RiskLevel::Destructive,
-            RiskLevel::Secrets,
-        ], true);
+        return in_array($risk, [RiskLevel::InternalWrite, RiskLevel::ExternalWrite, RiskLevel::Destructive, RiskLevel::Secrets], true);
     }
 }

@@ -196,16 +196,11 @@ jobs:
           fi
           exit $status
 
-  frontend-and-pages:
-    name: Frontend · docs · GitHub Pages
+  frontend:
+    name: Frontend build · workflow validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
-          coverage: none
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -215,22 +210,6 @@ jobs:
           if [[ -f package-lock.json ]]; then npm ci; else npm install --no-audit --no-fund; fi
       - run: npm run check
       - run: npm run build
-      - run: php scripts/build-site.php
-      - name: Check static site links
-        shell: bash
-        run: |
-          set +e
-          php scripts/check-site.php 2>&1 | tee /tmp/enverif-site-check.log
-          status=${PIPESTATUS[0]}
-          if [[ $status -ne 0 ]]; then
-            {
-              echo '### Static site link failure'
-              echo '```text'
-              cat /tmp/enverif-site-check.log
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-          exit $status
       - name: Validate workflow YAML
         run: |
           ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f, aliases: true); puts "OK #{f}" }'

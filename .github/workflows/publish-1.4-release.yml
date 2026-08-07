@@ -45,6 +45,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config user.name 'ShubhamTuts'
+          git config user.email '32325895+ShubhamTuts@users.noreply.github.com'
           git tag -a "$RELEASE_TAG" "$VERIFIED_MAIN_SHA" -m "Enverif 1.4.0"
           git push origin "refs/tags/$RELEASE_TAG"
       - name: Dispatch repository release workflow

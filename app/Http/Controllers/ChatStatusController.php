@@ -69,7 +69,7 @@ final class ChatStatusController extends Controller
 
         return response()->json([
             'messages' => $messages,
-            'transcript_html' => view('chat._transcript', [
+            'transcript_html' => $busy ? null : view('chat._transcript', [
                 'thread' => $thread,
                 'user' => $request->user(),
             ])->render(),

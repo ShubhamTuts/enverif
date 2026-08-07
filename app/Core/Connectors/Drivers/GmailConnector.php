@@ -2,7 +2,6 @@
 
 namespace App\Core\Connectors\Drivers;
 
-use App\Core\Agents\Contracts\RiskLevel;
 use App\Core\Connectors\DTO\{ConnectorAction, ConnectorResult};
 use App\Core\Email\{MailActionPolicy, MailMessageFactory, OAuthTokenService};
 use App\Models\ConnectorConnection;
@@ -17,12 +16,12 @@ final class GmailConnector extends AbstractConnector
     public function actions(): array
     {
         return [
-            new ConnectorAction('account', 'Get the connected Gmail account profile.', MailActionPolicy::risk('account')),
-            new ConnectorAction('search', 'Search Gmail messages using Gmail search syntax. Returns message and thread IDs; read a relevant thread before deciding whether a person replied.', MailActionPolicy::risk('search'), ['type'=>'object','properties'=>['query'=>['type'=>'string'],'limit'=>['type'=>'integer']]]),
-            new ConnectorAction('thread', 'Read a Gmail thread as normalized message metadata and readable bodies.', MailActionPolicy::risk('thread'), ['type'=>'object','properties'=>['thread_id'=>['type'=>'string']],'required'=>['thread_id']]),
-            new ConnectorAction('draft', 'Create an email draft in Gmail.', MailActionPolicy::risk('draft'), self::messageParameters()),
-            new ConnectorAction('send', 'Send an email through Gmail. Requires approval unless autonomous external writes are enabled.', MailActionPolicy::risk('send'), self::messageParameters()),
-            new ConnectorAction('reply', 'Reply inside a Gmail thread. Requires approval unless autonomous external writes are enabled.', MailActionPolicy::risk('reply'), self::messageParameters(true)),
+            new ConnectorAction('account', 'Get the connected mail account profile.', MailActionPolicy::risk('account'), [], ['mail.account.read']),
+            new ConnectorAction('search', 'Search mailbox messages. Returns message and thread IDs; read a relevant thread before deciding whether a person replied.', MailActionPolicy::risk('search'), ['type'=>'object','properties'=>['query'=>['type'=>'string'],'limit'=>['type'=>'integer']]], ['mail.search']),
+            new ConnectorAction('thread', 'Read a mail thread as normalized message metadata and readable bodies.', MailActionPolicy::risk('thread'), ['type'=>'object','properties'=>['thread_id'=>['type'=>'string']],'required'=>['thread_id']], ['mail.thread.read','mail.message.read']),
+            new ConnectorAction('draft', 'Create an email draft.', MailActionPolicy::risk('draft'), self::messageParameters(), ['mail.draft']),
+            new ConnectorAction('send', 'Send an email. Requires approval unless autonomous external writes are enabled.', MailActionPolicy::risk('send'), self::messageParameters(), ['mail.send']),
+            new ConnectorAction('reply', 'Reply inside a mail thread. Requires approval unless autonomous external writes are enabled.', MailActionPolicy::risk('reply'), self::messageParameters(true), ['mail.reply','mail.send']),
         ];
     }
 
@@ -71,27 +70,32 @@ final class GmailConnector extends AbstractConnector
     {
         $messages = [];
         foreach (array_slice((array) ($thread['messages'] ?? []), -100) as $message) {
-            if (! is_array($message)) continue;
+            if (!is_array($message)) continue;
             $payload = is_array($message['payload'] ?? null) ? $message['payload'] : [];
             $headers = [];
             foreach ((array) ($payload['headers'] ?? []) as $header) {
-                if (! is_array($header)) continue;
+                if (!is_array($header)) continue;
                 $key = strtolower(trim((string) ($header['name'] ?? '')));
                 if ($key !== '') $headers[$key] = trim((string) ($header['value'] ?? ''));
             }
+            $body = $this->bodyText($payload);
             $messages[] = [
                 'id' => (string) ($message['id'] ?? ''),
                 'thread_id' => (string) ($message['threadId'] ?? $thread['id'] ?? ''),
+                'message_id' => $headers['message-id'] ?? '',
+                'in_reply_to' => $headers['in-reply-to'] ?? '',
+                'references' => $headers['references'] ?? '',
                 'from' => $headers['from'] ?? '',
                 'to' => $headers['to'] ?? '',
                 'cc' => $headers['cc'] ?? '',
                 'subject' => $headers['subject'] ?? '',
-                'date' => $headers['date'] ?? '',
-                'message_id' => $headers['message-id'] ?? '',
-                'in_reply_to' => $headers['in-reply-to'] ?? '',
+                'sent_at' => $headers['date'] ?? '',
+                'received_at' => isset($message['internalDate']) ? (string) $message['internalDate'] : null,
+                'unread' => in_array('UNREAD', (array) ($message['labelIds'] ?? []), true),
                 'snippet' => Str::limit(trim((string) ($message['snippet'] ?? '')), 1000, '…'),
-                'body' => Str::limit($this->bodyText($payload), 20000, '…'),
-                'internal_date' => isset($message['internalDate']) ? (string) $message['internalDate'] : null,
+                'text' => Str::limit($body, 20000, '…'),
+                'html' => null,
+                'truncated' => mb_strlen($body) > 20000,
             ];
         }
 
@@ -129,9 +133,7 @@ final class GmailConnector extends AbstractConnector
                 elseif ($mime === 'text/html') $html[] = $decoded;
             }
         }
-        foreach ((array) ($payload['parts'] ?? []) as $part) {
-            if (is_array($part)) $this->collectBodies($part, $plain, $html);
-        }
+        foreach ((array) ($payload['parts'] ?? []) as $part) if (is_array($part)) $this->collectBodies($part, $plain, $html);
     }
 
     private function decodeBody(string $data): string

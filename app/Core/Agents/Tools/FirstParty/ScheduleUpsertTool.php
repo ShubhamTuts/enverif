@@ -22,8 +22,8 @@ final class ScheduleUpsertTool implements AgentTool
             'properties' => [
                 'name' => ['type' => 'string', 'maxLength' => 120],
                 'target_type' => ['type' => 'string', 'enum' => ['agent', 'workflow']],
-                'agent_id' => ['type' => ['integer', 'null']],
-                'workflow_id' => ['type' => ['integer', 'null']],
+                'agent_id' => ['type' => 'integer'],
+                'workflow_id' => ['type' => 'integer'],
                 'cron_expression' => ['type' => 'string', 'description' => 'Standard five-field cron expression.'],
                 'timezone' => ['type' => 'string', 'description' => 'IANA timezone identifier.'],
                 'prompt' => ['type' => 'string', 'maxLength' => 20000],

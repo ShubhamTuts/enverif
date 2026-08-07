@@ -127,16 +127,17 @@ EOF
 
   local apache_url="http://127.0.0.1:${APACHE_PORT}"
   for _ in $(seq 1 30); do
-    if curl -sS -o /dev/null "$apache_url/"; then
+    if curl -sS -b "$COOKIE_JAR" -o /dev/null "$apache_url/"; then
       break
     fi
     sleep 0.25
   done
 
-  local path code
+  local path code body
   for path in /skills/create /plugins/apify/dependencies; do
-    code="$(curl -sS -o /dev/null -w '%{http_code}' "$apache_url$path")"
-    [[ "$code" != "403" ]] || fail "Root .htaccess intercepted Laravel virtual route $path with Apache 403."
+    body="$WORK/apache-$(echo "$path" | tr '/' '_').out"
+    code="$(curl -sS -b "$COOKIE_JAR" -o "$body" -w '%{http_code}' "$apache_url$path")"
+    [[ "$code" == "200" ]] || fail "Expected authenticated Laravel route $path to return 200 through root .htaccess, received HTTP $code." "$body"
   done
 
   for path in /app/Http/Controllers/SkillController.php /config/app.php /resources/views/layouts/app.blade.php /vendor/autoload.php; do
@@ -150,8 +151,6 @@ EOF
   sudo a2disconf enverif-smoke-port >/dev/null
   sudo rm -f "$APACHE_SITE" "$APACHE_PORT_CONF"
 }
-
-apache_rewrite_probe
 
 rm -f storage/app/installed storage/app/bootstrap.key bootstrap/cache/config.php
 find storage/framework/views -type f ! -name '.gitignore' -delete 2>/dev/null || true
@@ -222,6 +221,10 @@ fi
 for path in / /agents /agents/create /workflows /workflows/create /connectors /skills /skills/create /models /mcp /settings; do
   assert_http_200 "$path"
 done
+
+# Exercise the same application through Apache with the authenticated owner session.
+# This catches root .htaccess collisions that php artisan serve cannot reproduce.
+apache_rewrite_probe
 
 ROOT_HTML="$WORK/body-_.html"
 grep -q 'data-chat-shell' "$ROOT_HTML" || fail "Authenticated root did not render the chat shell." "$ROOT_HTML"

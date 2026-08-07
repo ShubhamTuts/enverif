@@ -5,6 +5,7 @@ namespace App\Core\Connectors\Drivers;
 use App\Core\Connectors\DTO\{ConnectorAction, ConnectorResult};
 use App\Core\Email\{MailActionPolicy, OAuthTokenService};
 use App\Models\ConnectorConnection;
+use Illuminate\Support\Str;
 
 final class OutlookConnector extends AbstractConnector
 {
@@ -15,12 +16,12 @@ final class OutlookConnector extends AbstractConnector
     public function actions(): array
     {
         return [
-            new ConnectorAction('account','Get the connected Microsoft account.',MailActionPolicy::risk('account')),
-            new ConnectorAction('search','Search Outlook messages.',MailActionPolicy::risk('search'),['type'=>'object','properties'=>['query'=>['type'=>'string'],'limit'=>['type'=>'integer']]]),
-            new ConnectorAction('thread','List messages from one Outlook conversation ID.',MailActionPolicy::risk('thread'),['type'=>'object','properties'=>['conversation_id'=>['type'=>'string']],'required'=>['conversation_id']]),
-            new ConnectorAction('draft','Create an Outlook draft.',MailActionPolicy::risk('draft'),self::messageParameters()),
-            new ConnectorAction('send','Send an email through Outlook. Requires approval unless autonomous external writes are enabled.',MailActionPolicy::risk('send'),self::messageParameters()),
-            new ConnectorAction('reply','Reply to an Outlook message. Requires approval unless autonomous external writes are enabled.',MailActionPolicy::risk('reply'),self::messageParameters(true)),
+            new ConnectorAction('account','Get the connected mail account.',MailActionPolicy::risk('account'),[],['mail.account.read']),
+            new ConnectorAction('search','Search mailbox messages.',MailActionPolicy::risk('search'),['type'=>'object','properties'=>['query'=>['type'=>'string'],'limit'=>['type'=>'integer']]],['mail.search']),
+            new ConnectorAction('thread','List normalized messages from one mail conversation.',MailActionPolicy::risk('thread'),['type'=>'object','properties'=>['conversation_id'=>['type'=>'string']],'required'=>['conversation_id']],['mail.thread.read','mail.message.read']),
+            new ConnectorAction('draft','Create an email draft.',MailActionPolicy::risk('draft'),self::messageParameters(),['mail.draft']),
+            new ConnectorAction('send','Send an email. Requires approval unless autonomous external writes are enabled.',MailActionPolicy::risk('send'),self::messageParameters(),['mail.send']),
+            new ConnectorAction('reply','Reply to a mail message. Requires approval unless autonomous external writes are enabled.',MailActionPolicy::risk('reply'),self::messageParameters(true),['mail.reply','mail.send']),
         ];
     }
 
@@ -39,11 +40,12 @@ final class OutlookConnector extends AbstractConnector
 
     public function execute(ConnectorConnection $connection, string $action, array $arguments): ConnectorResult
     {
-        $this->action($action); $request=$this->request($connection);
+        $this->action($action);
+        $request=$this->request($connection);
         return match($action) {
             'account'=>ConnectorResult::success($request->get('https://graph.microsoft.com/v1.0/me')->throw()->json()),
-            'search'=>ConnectorResult::success($request->withHeaders(['ConsistencyLevel'=>'eventual'])->get('https://graph.microsoft.com/v1.0/me/messages', ['$search'=>'"'.str_replace('"','',(string)($arguments['query']??'')).'"','$top'=>max(1,min(100,(int)($arguments['limit']??20))),'$select'=>'id,subject,from,toRecipients,receivedDateTime,isRead,conversationId'])->throw()->json()),
-            'thread'=>ConnectorResult::success($request->get('https://graph.microsoft.com/v1.0/me/messages', ['$filter'=>"conversationId eq '" . str_replace("'","''",(string)($arguments['conversation_id']??'')) . "'",'$top'=>100,'$select'=>'id,subject,from,toRecipients,receivedDateTime,bodyPreview,conversationId'])->throw()->json()),
+            'search'=>ConnectorResult::success($this->normalizeMessages((array)$request->withHeaders(['ConsistencyLevel'=>'eventual'])->get('https://graph.microsoft.com/v1.0/me/messages', ['$search'=>'"'.str_replace('"','',(string)($arguments['query']??'')).'"','$top'=>max(1,min(100,(int)($arguments['limit']??20))),'$select'=>'id,internetMessageId,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,isRead,bodyPreview,conversationId'])->throw()->json())),
+            'thread'=>ConnectorResult::success($this->normalizeMessages((array)$request->get('https://graph.microsoft.com/v1.0/me/messages', ['$filter'=>"conversationId eq '" . str_replace("'","''",(string)($arguments['conversation_id']??'')) . "'",'$top'=>100,'$select'=>'id,internetMessageId,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,isRead,bodyPreview,body,conversationId'])->throw()->json(), (string)($arguments['conversation_id']??''))),
             'draft'=>ConnectorResult::success($request->post('https://graph.microsoft.com/v1.0/me/messages',$this->graphMessage($arguments))->throw()->json()),
             'send'=>ConnectorResult::success($this->send($request,$arguments)),
             'reply'=>ConnectorResult::success($this->reply($request,$arguments)),
@@ -64,7 +66,7 @@ final class OutlookConnector extends AbstractConnector
 
     private function reply($request,array $arguments): array
     {
-        $id=rawurlencode((string)($arguments['message_id']??'')); if($id==='')throw new \InvalidArgumentException('message_id is required for Outlook replies.');
+        $id=rawurlencode((string)($arguments['message_id']??'')); if($id==='')throw new \InvalidArgumentException('message_id is required for mail replies.');
         $response=$request->post("https://graph.microsoft.com/v1.0/me/messages/{$id}/reply",['comment'=>(string)($arguments['body']??'')]);
         $response->throw(); return ['sent'=>true,'status'=>$response->status()];
     }
@@ -75,6 +77,53 @@ final class OutlookConnector extends AbstractConnector
         $subject=trim(str_replace(["\r","\n"],' ',(string)($arguments['subject']??''))); $body=(string)($arguments['body']??'');
         if($subject===''||$body==='')throw new \InvalidArgumentException('Email subject and body are required.');
         return ['subject'=>$subject,'body'=>['contentType'=>!empty($arguments['html'])?'HTML':'Text','content'=>$body],'toRecipients'=>[['emailAddress'=>['address'=>$to]]]];
+    }
+
+    /** @param array<string,mixed> $payload @return array<string,mixed> */
+    private function normalizeMessages(array $payload, ?string $threadId = null): array
+    {
+        $messages=[];
+        foreach(array_slice((array)($payload['value']??[]),0,100) as $message){
+            if(!is_array($message))continue;
+            $body=is_array($message['body']??null)?$message['body']:[];
+            $rawBody=(string)($body['content']??'');
+            $isHtml=strtoupper((string)($body['contentType']??''))==='HTML';
+            $text=$rawBody!==''?($isHtml?trim(html_entity_decode(strip_tags($rawBody),ENT_QUOTES|ENT_HTML5,'UTF-8')):$rawBody):(string)($message['bodyPreview']??'');
+            $messages[]=[
+                'id'=>(string)($message['id']??''),
+                'thread_id'=>(string)($message['conversationId']??$threadId??''),
+                'message_id'=>(string)($message['internetMessageId']??''),
+                'in_reply_to'=>'',
+                'references'=>'',
+                'from'=>$this->address(data_get($message,'from.emailAddress')),
+                'to'=>$this->addresses((array)($message['toRecipients']??[])),
+                'cc'=>$this->addresses((array)($message['ccRecipients']??[])),
+                'subject'=>(string)($message['subject']??''),
+                'sent_at'=>$message['sentDateTime']??null,
+                'received_at'=>$message['receivedDateTime']??null,
+                'unread'=>array_key_exists('isRead',$message)?!(bool)$message['isRead']:null,
+                'snippet'=>Str::limit((string)($message['bodyPreview']??''),1000,'…'),
+                'text'=>Str::limit($text,20000,'…'),
+                'html'=>$isHtml?Str::limit($rawBody,20000,'…'):null,
+                'truncated'=>mb_strlen($text)>20000||($isHtml&&mb_strlen($rawBody)>20000),
+            ];
+        }
+        return ['thread_id'=>$threadId,'message_count'=>count($messages),'messages'=>$messages];
+    }
+
+    /** @param array<string,mixed>|null $address */
+    private function address(?array $address): string
+    {
+        if(!$address)return '';
+        $email=trim((string)($address['address']??''));$name=trim((string)($address['name']??''));
+        return $name!==''&&$email!==''?"{$name} <{$email}>":($email!==''?$email:$name);
+    }
+
+    /** @param array<int,mixed> $recipients */
+    private function addresses(array $recipients): string
+    {
+        $out=[];foreach($recipients as $recipient){$value=$this->address(is_array($recipient)?(is_array($recipient['emailAddress']??null)?$recipient['emailAddress']:null):null);if($value!=='')$out[]=$value;}
+        return implode(', ',$out);
     }
 
     private static function messageParameters(bool $reply=false):array

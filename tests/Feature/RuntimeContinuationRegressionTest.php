@@ -11,7 +11,8 @@ final class RuntimeContinuationRegressionTest extends TestCase
         $source = file_get_contents(app_path('Jobs/ContinueAgentRunJob.php'));
 
         self::assertIsString($source);
-        self::assertStringContainsString('$acquired = $locks->agent(', $source);
+        self::assertStringContainsString('$acquired = $workspace->run(', $source);
+        self::assertStringContainsString('$locks->agent(', $source);
         self::assertStringContainsString('if (! $acquired)', $source);
         self::assertStringContainsString('$this->release(', $source);
         self::assertStringContainsString('public int $maxExceptions', $source);
@@ -22,7 +23,8 @@ final class RuntimeContinuationRegressionTest extends TestCase
         $source = file_get_contents(app_path('Jobs/ContinueWorkflowRunJob.php'));
 
         self::assertIsString($source);
-        self::assertStringContainsString('$acquired = $locks->workflow(', $source);
+        self::assertStringContainsString('$acquired = $workspace->run(', $source);
+        self::assertStringContainsString('$locks->workflow(', $source);
         self::assertStringContainsString('if (! $acquired)', $source);
         self::assertStringContainsString('$this->release(', $source);
         self::assertStringContainsString('public int $maxExceptions', $source);

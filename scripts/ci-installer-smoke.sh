@@ -17,6 +17,7 @@ ADMIN_PASSWORD="InstallerPass123!"
 COOKIE_JAR="$(mktemp)"
 WORK="$(mktemp -d)"
 SERVER_LOG="$WORK/server.log"
+APACHE_ERROR_LOG="$WORK/apache-error.log"
 SERVER_PID=""
 APACHE_ACTIVE=0
 APACHE_SITE="/etc/apache2/sites-available/enverif-smoke.conf"
@@ -53,6 +54,10 @@ fail() {
   if [[ -f "$SERVER_LOG" ]]; then
     echo "--- Laravel server log ---" >&2
     tail -n 160 "$SERVER_LOG" >&2 || true
+  fi
+  if [[ -f "$APACHE_ERROR_LOG" ]]; then
+    echo "--- Apache error/rewrite log ---" >&2
+    tail -n 200 "$APACHE_ERROR_LOG" >&2 || true
   fi
   exit 1
 }
@@ -112,6 +117,8 @@ apache_rewrite_probe() {
 <VirtualHost 127.0.0.1:${APACHE_PORT}>
     ServerName 127.0.0.1
     DocumentRoot "${ROOT}"
+    ErrorLog "${APACHE_ERROR_LOG}"
+    LogLevel warn rewrite:trace4
     <Directory "${ROOT}">
         Options -Indexes
         AllowOverride All
@@ -134,6 +141,10 @@ EOF
   done
 
   local path code body
+  body="$WORK/apache-baseline.out"
+  code="$(curl -sS -b "$COOKIE_JAR" -o "$body" -w '%{http_code}' "$apache_url/agents")"
+  [[ "$code" == "200" ]] || fail "Apache baseline /agents did not reach Laravel (HTTP $code); the Apache test environment itself is invalid." "$body"
+
   for path in /skills/create /plugins/apify/dependencies; do
     body="$WORK/apache-$(echo "$path" | tr '/' '_').out"
     code="$(curl -sS -b "$COOKIE_JAR" -o "$body" -w '%{http_code}' "$apache_url$path")"

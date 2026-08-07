@@ -7,13 +7,7 @@
   "driver": "App\\Core\\Connectors\\Drivers\\SmtpConnector",
   "capabilities": [
     "network",
-    "external_write",
-    "mail.send",
-    "mail.reply",
-    "mail.search",
-    "mail.message.read",
-    "mail.thread.read",
-    "mail.receive"
+    "external_write"
   ],
   "license": "MIT",
   "developer": "Codefreex",

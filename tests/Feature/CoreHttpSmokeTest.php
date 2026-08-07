@@ -64,6 +64,43 @@ final class CoreHttpSmokeTest extends TestCase
         }
     }
 
+    public function test_skill_and_plugin_management_routes_are_authorized_by_laravel_capabilities(): void
+    {
+        $ownerSession = ['workspace_id' => $this->workspace->id];
+
+        $this->actingAs($this->user)
+            ->withSession($ownerSession)
+            ->get('/skills/create')
+            ->assertOk();
+
+        $this->actingAs($this->user)
+            ->withSession($ownerSession)
+            ->post('/skills/install', [])
+            ->assertSessionHasErrors('source_url');
+
+        $this->actingAs($this->user)
+            ->withSession($ownerSession)
+            ->get('/plugins/apify/dependencies')
+            ->assertOk();
+
+        $member = User::create([
+            'name' => 'Member',
+            'email' => 'member@example.test',
+            'password' => Hash::make('password'),
+        ]);
+        $member->workspaces()->attach($this->workspace->id, ['role' => 'member']);
+
+        $this->actingAs($member)
+            ->withSession($ownerSession)
+            ->get('/skills/create')
+            ->assertForbidden();
+
+        $this->actingAs($member)
+            ->withSession($ownerSession)
+            ->get('/plugins/apify/dependencies')
+            ->assertForbidden();
+    }
+
     public function test_product_brand_lockup_is_enverif_without_a_codefreex_suffix(): void
     {
         $response = $this->actingAs($this->user)

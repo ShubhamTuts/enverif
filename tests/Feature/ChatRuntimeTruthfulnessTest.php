@@ -98,7 +98,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
         self::assertSame('completed', $userMessage->fresh()->status);
     }
 
-    public function test_chat_status_exposes_terminal_materialization_and_the_durable_run_tree(): void
+    public function test_chat_status_stays_lightweight_while_activity_endpoint_exposes_the_durable_run_tree(): void
     {
         $thread = $this->thread();
         $userMessage = ChatMessage::create([
@@ -142,15 +142,24 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
             'started_at' => now(),
         ]);
 
-        $response = $this->actingAs($this->user)
+        $status = $this->actingAs($this->user)
             ->withSession(['workspace_id' => $this->workspace->id])
             ->getJson('/chats/'.$thread->id.'/status');
 
-        $response->assertOk()
+        $status->assertOk()
+            ->assertJsonPath('busy', true)
             ->assertJsonPath('terminal_message_present', false)
-            ->assertJsonPath('activity.root_run_id', $parent->id)
-            ->assertJsonPath('activity.pending_approval_count', 0);
-        self::assertSame(2, count((array) $response->json('activity.runs')));
+            ->assertJsonPath('transcript_html', null)
+            ->assertJsonMissingPath('activity');
+
+        $activity = $this->actingAs($this->user)
+            ->withSession(['workspace_id' => $this->workspace->id])
+            ->getJson('/chats/'.$thread->id.'/activity');
+
+        $activity->assertOk()
+            ->assertJsonPath('root_run_id', $parent->id)
+            ->assertJsonPath('pending_approval_count', 0);
+        self::assertSame(2, count((array) $activity->json('runs')));
     }
 
     public function test_chat_page_has_persistent_mounts_for_live_activity_and_inline_approvals(): void

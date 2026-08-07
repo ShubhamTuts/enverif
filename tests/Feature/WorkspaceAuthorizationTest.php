@@ -45,6 +45,15 @@ final class WorkspaceAuthorizationTest extends TestCase
             'timezone' => 'UTC',
             'locale' => 'en',
         ]);
+        $owner = User::create([
+            'name' => 'Workspace Owner',
+            'email' => 'owner-'.$role.'@example.test',
+            'password' => Hash::make('Correct-Horse-123'),
+            'locale' => 'en',
+            'theme' => 'system',
+        ]);
+        $owner->workspaces()->attach($workspace->id, ['role' => 'owner']);
+
         $user = User::create([
             'name' => ucfirst($role).' User',
             'email' => $role.'@example.test',

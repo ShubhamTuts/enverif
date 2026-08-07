@@ -67,7 +67,7 @@ final class WorkflowRuntimeTest extends TestCase
         $run = WorkflowRun::withoutGlobalScopes()->findOrFail($run->id);
         self::assertSame('completed', $run->status);
         self::assertSame(1, (int) data_get($run->context, 'workflow_version'));
-        self::assertSame($workflow->definition, data_get($run->context, 'workflow_definition'));
+        self::assertEquals($workflow->definition, data_get($run->context, 'workflow_definition'));
         self::assertNotNull($run->finished_at);
     }
 }

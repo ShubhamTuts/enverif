@@ -1,128 +1,228 @@
 <p align="center">
-  <img src="public/assets/enverif-mark.svg" width="82" height="82" alt="Enverif logo">
+  <img src="public/assets/enverif-mark.svg" width="84" height="84" alt="Enverif logo">
 </p>
 
 <h1 align="center">Enverif</h1>
-<p align="center"><strong>The open-source agent operating system for revenue.</strong></p>
-<p align="center">A durable, approval-aware AI workspace for prospect research, lead generation, outreach, follow-up, sales workflows and revenue operations — self-hosted on anything from shared hosting to Redis-powered infrastructure.</p>
-
+<p align="center"><strong>Open-source AI sales employees for your agency or business.</strong></p>
 <p align="center">
-  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-111827.svg"></a>
-  <img alt="PHP 8.3+" src="https://img.shields.io/badge/PHP-8.3%2B-777BB4.svg">
-  <img alt="Laravel 13" src="https://img.shields.io/badge/Laravel-13-FF2D20.svg">
-  <img alt="MySQL" src="https://img.shields.io/badge/MySQL-durable_state-4479A1.svg">
-  <img alt="Redis optional" src="https://img.shields.io/badge/Redis-optional-DC382D.svg">
+  Give Enverif a sales outcome. Your AI employees can research prospects, find and qualify leads, prepare personalized outreach, follow up, manage campaigns, operate connected tools and keep revenue work moving — from one self-hosted workspace.
 </p>
 
 <p align="center">
-  <a href="https://shubhamtuts.github.io/enverif/">Documentation</a> ·
-  <a href="docs/getting-started/installation.md">Install</a> ·
-  <a href="CONTRIBUTING.md">Contribute</a> ·
-  <a href="SECURITY.md">Security</a>
+  <a href="https://enverif.com">Website</a> ·
+  <a href="docs/getting-started/installation.md">Get started</a> ·
+  <a href="docs/PRODUCT-REQUIREMENTS.md">Product</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-111827.svg"></a>
+  <img alt="PHP 8.3+" src="https://img.shields.io/badge/PHP-8.3%2B-777BB4.svg">
+  <img alt="Laravel 13" src="https://img.shields.io/badge/Laravel-13-FF2D20.svg">
+  <img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-yes-22C55E.svg">
+  <img alt="BYOK" src="https://img.shields.io/badge/models-BYOK-6366F1.svg">
+</p>
+
+<p align="center">
+  <a href="https://enverif.com">
+    <img src="https://enverif.com/assets/hero-workspace.png" alt="Enverif AI sales employees workspace" width="100%">
+  </a>
 </p>
 
 ---
 
-## One conversation. Your complete revenue stack.
+## Enverif 1.4.0
 
-Enverif opens into an agentic, ChatGPT-style revenue workspace. Pick an `@agent`, tag a `@plugin`, `@skill` or `@workflow`, then ask for the business outcome. Every turn still becomes an immutable durable run with tool traces, permission decisions and approvals under the hood.
+The current release line combines the agentic chat, sales-orchestration and production-hardening work into one self-hosted AI sales workspace. See the [changelog](CHANGELOG.md) for release-by-release details.
 
-**Examples**
+## Hire AI employees, not another chatbot
+
+Most AI tools wait for another prompt.
+
+**Enverif is built to keep working.**
+
+Create specialized AI employees for the jobs your revenue team repeats every day: prospect research, lead generation, qualification, account enrichment, outreach preparation, follow-up, campaign operations and sales administration. Give each employee its own instructions, model, skills, tools, limits, memory and schedule — then let them collaborate through durable workflows.
+
+You stay in control of the boundary between **autonomous work** and **human approval**. Research and internal work can move quickly; external writes such as sending email can remain approval-first or be explicitly enabled for autonomous execution.
+
+### Tell the team what outcome you want
 
 ```text
-Find 30 HVAC companies in Melbourne, qualify the top 10,
-find decision-makers, save them as leads and draft personalized emails.
+Find 50 web-design prospects in Australia that look ready to buy.
+Research each company, identify the owner or founder, score the opportunity,
+save the best 15 as leads and prepare personalized outreach for approval.
 ```
 
 ```text
-Review my hot leads, find who has not replied, research fresh context,
-and prepare follow-ups for approval.
+Review every warm lead that has not replied in the last 5 days.
+Research a fresh reason to contact them, draft a useful follow-up,
+and queue the strongest messages for me to approve.
 ```
 
 ```text
-Use Apollo + Google Maps research, hand deep research to my specialist
-agent, then add qualified companies to the Australia outbound campaign.
+Build an outbound workflow for local service businesses in the US.
+Use my research tools, qualify companies before outreach, update lead status,
+and hand high-intent replies to my closer agent.
 ```
 
-## Enverif 1.3.9
+Enverif turns a prompt into **durable sales work**: agent runs, tool calls, approvals, lead updates, campaign activity and workflow state are persisted instead of disappearing when a browser tab closes.
 
-The 1.3.9 release slims the chat composer (agent + Advanced beside send, no heavy Run settings bar), fixes the agents/create 500 from a Blade `|` filter collision, blocks send while runs are live, and surfaces active session runs in the thread toolbar.
+## Build your AI sales team
 
+Create agents for roles such as:
 
-## Enverif 1.3.6
+| AI employee | What you can make it responsible for |
+|---|---|
+| **Prospect Researcher** | Find companies, investigate websites, collect business context and build account briefs. |
+| **Lead Generation Agent** | Discover prospects through connected data sources and turn qualified results into persistent leads. |
+| **AI SDR** | Qualify accounts, identify decision-makers and prepare personalized outreach. |
+| **Follow-up Agent** | Review conversations, detect stale opportunities and prepare context-aware follow-ups. |
+| **Sales Operations Agent** | Keep lead state, campaign activity, schedules and workflow handoffs organized. |
+| **Specialist / Closer Agent** | Receive delegated high-value opportunities with focused instructions, context and tool access. |
 
-The 1.3.6 release upgrades the visual workflow studio toward an n8n-style builder (grouped palette, port links, pan, auto-layout, edge editing) and adds a first-party **Google Sheets** OAuth connector with real Google Sheets branding. Plugin action schemas are exposed to the workflow inspector so connector nodes are easier to wire end-to-end.
+These are roles, not hard-coded bots. An Enverif agent is configured from its instructions, model, skills, plugin permissions, limits, memory, schedules and delegation policy, so you can shape employees around your own sales process.
 
-## Enverif 1.3.5
+## One workspace for the complete sales loop
 
-The 1.3.5 release hardens the AI tool/provider boundary so DeepSeek and OpenAI-compatible providers accept Enverif tool schemas (empty JSON Schema `properties` encode as `{}`, not `[]`). A capability-aware Model Registry backs suggested catalogs. First-party Slack and Buffer plugins land for team messaging and social scheduling. Chat run settings collapse into a compact “Run settings” control, and agents gain creative/social publishing configuration for specialist roles.
+**Research → qualify → save → outreach → follow up → hand off → learn → repeat.**
 
-## Enverif 1.3.4
+Enverif brings the operating pieces into one system:
 
-The 1.3.4 release fixes two production DeepSeek failures: encrypted API-key decrypt errors (“The MAC is invalid” after an `APP_KEY` change) now show a clear re-enter-key recovery path, and tool names with dots (`memory.search`, `connector.*`, `mcp.*`) are sanitized for DeepSeek/OpenAI/Anthropic while remaining reversible for tool routing. Chat surfaces failed provider/credential runs as Error chips, and connection forms keep consistent action-row spacing.
+- **Agentic chat** — talk to the revenue workspace from one ChatGPT-style interface. Choose the active agent, mention `@plugins`, `@skills`, `@workflows`, `@leads` and `@campaigns`, attach private files and choose the right model/effort for the job.
+- **Persistent AI agents** — each employee has instructions, model preferences, skills, tool permissions, memory, limits, schedules and delegation controls.
+- **Lead workspace** — keep prospects, scores, research summaries, provenance and activity history as durable business state.
+- **Campaigns** — organize prospects and ordered sales steps instead of leaving outreach context inside isolated chats.
+- **Visual workflows** — connect triggers, agents, plugin actions, skills, conditions, delays, leads, campaigns, approvals and outputs on a durable workflow engine.
+- **Schedules** — give employees recurring responsibilities with cron-based schedules and timezone support.
+- **Approvals & policy** — classify tool risk and decide which actions can run autonomously, which must ask and which remain denied.
+- **Run history** — inspect agent runs, workflow runs, steps, retries, child agents, tool activity, token/cost accounting and terminal state.
 
-1.3.3 made BYOK model catalogs production-current (DeepSeek V4, current Claude/Gemini/OpenAI IDs), remapped retired model aliases, and polished chat/plugin UI. See the [product requirements](docs/PRODUCT-REQUIREMENTS.md) and [changelog](CHANGELOG.md).
+## Connect the tools your sales team already uses
 
-## What ships
+Enverif ships with first-party and extensible connections for revenue work, including:
 
-- **Agentic chat** — searchable/grouped chat history, persistent per-thread agent/model/effort defaults, one-message overrides, structured `@agent`, `@plugin`, `@skill`, `@workflow`, `@lead` and `@campaign` context, private attachments and stop controls.
-- **AI agents** — instructions, model, default effort, private avatars, skills, plugin connections, limits, memory, delegation and explicit capability policy; each run snapshots its mutable execution configuration for durability.
-- **Durable execution** — persisted messages, steps, retries, approvals, child runs, token/cost accounting and terminal audit state.
-- **Visual workflows** — n8n/Make-style canvas with triggers, agents, plugin actions, skills, conditions, delays, leads, campaigns, approvals and outputs, plus runtime validation, dry-run/test execution, retry/resume controls and per-node inspection.
-- **Email automation** — first-party Gmail OAuth, Microsoft Outlook OAuth and SMTP plugins developed by **Codefreex**.
-- **Approval-first outreach** — drafts can be automated; send/reply are always external writes and ask by default. Autonomous sending is an explicit agent/workflow switch.
-- **Sales workspace** — leads, scores, research summaries, provenance, activities, campaigns and ordered campaign steps.
-- **Schedules** — month calendar and recurring agent/workflow schedules with five-field cron + IANA timezone support.
-- **BYOK models** — OpenAI, Anthropic Claude, Google Gemini and DeepSeek with encrypted credentials and custom model IDs.
-- **Revenue plugins** — Apify, Apollo, GSC, GA4, Google Maps research, Calendly, n8n/Zapier/Make/custom webhook, Gmail, Outlook and SMTP.
-- **MCP** — remote Streamable HTTP tool servers.
-- **Skills** — local or trusted Git-hosted `SKILL.md` packages with provenance, checksums and security scanning.
-- **System health** — runtime, queue/cache, scheduler heartbeat, pending/failed jobs, PHP, Redis availability, storage and base URL.
-- **English, French and Dutch** — translation-key parity checked at release time.
+**Gmail · Microsoft Outlook · SMTP · Apollo · Apify · Google Maps research · Google Search Console · Google Analytics · Calendly · Google Sheets · Slack · Buffer · webhooks for n8n / Zapier / Make · MCP servers**
 
-## Runs on ordinary shared hosting
+Connections are capabilities your employees can use. Skills describe **how to do the job**. Workflows define **how repeatable work should execute**. Agents decide **what to do next** inside the permissions you give them.
 
-Redis is **not required**. Enverif has two full runtime profiles:
+## Bring your own AI models
+
+Use your own provider credentials and keep model choice independent from the employee or workflow design.
+
+Supported provider families include:
+
+- OpenAI
+- Anthropic Claude
+- Google Gemini
+- DeepSeek
+- custom compatible model IDs where supported
+
+Credentials are encrypted at rest. Model connections expose health/diagnostic state so provider failures can be separated from agent or workflow failures.
+
+## Designed for agencies
+
+An agency can use Enverif as an internal AI sales team that continuously turns market research into organized pipeline work.
+
+A practical setup might be:
+
+```text
+Research Agent
+    ↓
+Lead Qualification Agent
+    ↓
+AI SDR
+    ↓
+Human approval or autonomous send policy
+    ↓
+Follow-up Agent
+    ↓
+Closer / owner handoff
+```
+
+Use separate agents for niches, geographies, offers or client acquisition motions. Reuse skills and workflows across them while keeping tool access, schedules and action policy explicit.
+
+## Designed for businesses
+
+For a small business, Enverif can become the operating layer behind repetitive sales work without requiring a large sales-ops stack.
+
+Use it to research target accounts, build lead lists, keep prospect context together, prepare outreach, monitor follow-up work, route qualified opportunities and automate the repetitive steps around your team — while keeping important external actions governed.
+
+## Not just prompts: durable execution
+
+A useful AI employee must survive more than one chat turn.
+
+Enverif persists execution so long-running work can be inspected and resumed. Agent and workflow runs record their execution state, and mutable configuration is snapshotted so editing an agent later does not silently rewrite work already in flight.
+
+```text
+Prompt / Schedule / Webhook
+            │
+            ▼
+        AI Employee
+            │
+      ┌─────┴─────┐
+      │           │
+   Skills      Plugins / MCP
+      │           │
+      └─────┬─────┘
+            │
+      Policy + Approval
+            │
+            ▼
+ Leads / Campaigns / External Actions
+            │
+            ▼
+     Durable Run History
+```
+
+## Autonomy without giving up control
+
+Every tool action is classified into a capability/risk class:
+
+`read` · `internal_write` · `network` · `external_write` · `secrets` · `destructive`
+
+The important defaults are simple:
+
+1. Explicit deny wins.
+2. Read and internal operations can stay fast.
+3. External writes ask by default unless autonomous writes are deliberately enabled.
+4. Secret-bearing operations require approval.
+5. Destructive actions are denied by default and remain separately permissioned.
+6. Delegated child agents cannot exceed their parent policy ceiling.
+7. Tool access remains workspace-scoped and run-scoped.
+
+The goal is not to make an employee ask about every harmless step. The goal is to let useful autonomous work happen **inside a boundary you can understand and audit**.
+
+## Runs on shared hosting, VPS or Docker
+
+Redis is optional. Enverif supports two runtime profiles while keeping MySQL as authoritative durable state.
 
 | | Shared Hosting Mode | Performance Mode |
 |---|---|---|
 | Durable state | MySQL | MySQL |
 | Queue | Database | Redis preferred |
-| Cache/locks | Database | Redis preferred |
-| Background execution | bounded cron | persistent workers |
+| Cache / locks | Database | Redis preferred |
+| Background execution | Bounded cron | Persistent workers |
 | SSH required after package upload | No | Usually |
-| Features | Full | Full |
+| Core product features | Full | Full |
 
-The ready-to-upload shared-hosting release contains Composer dependencies and compiled assets. Upload → extract → create MySQL database → visit `/install` → copy the generated cron command.
-
-```bash
-php /absolute/path/to/enverif/artisan enverif:tick
-```
-
-Run it once per minute. `enverif:tick` acquires a lock, dispatches schedules, drains queue work inside a configured time budget, writes a heartbeat, and exits cleanly. Durable agent/workflow state resumes on the next tick.
-
-Enverif supports:
-
-- root domains and subdomains;
-- nested paths such as `https://example.com/tools/enverif/`;
-- Apache document roots pointed at `public/`;
-- file-manager-only deployments using the included secure root `.htaccess`;
-- Hostinger, cPanel and Plesk cron workflows;
-- Redis/VPS/Docker performance deployments.
-
-Read the [shared-hosting guide](docs/hosting/shared-hosting.md) or the dedicated [Hostinger guide](docs/hosting/hostinger.md).
-
-## Install
+That makes Enverif deployable on ordinary hosting as well as a dedicated server.
 
 ### Shared hosting / no SSH
 
-Download the `*-shared-hosting.zip` artifact from GitHub Releases, extract it and visit:
+Download the `*-shared-hosting.zip` package from GitHub Releases, upload it, extract it, create a MySQL database and visit:
 
 ```text
 https://your-domain.example/install
 ```
 
-The installer checks PHP/extensions, MySQL CREATE permissions, storage, current subfolder, execution constraints and Redis availability. Missing Redis is informational — Shared Hosting Mode selects database queue/cache automatically.
+The installer checks PHP/extensions, database access, writable storage, runtime mode and deployment path. After installation, run the generated cron command once per minute:
+
+```bash
+php /absolute/path/to/enverif/artisan enverif:tick
+```
+
+`enverif:tick` acquires a lock, dispatches schedules, drains bounded queue work, writes a heartbeat and exits cleanly so durable work can continue on the next tick.
 
 ### Docker
 
@@ -132,7 +232,7 @@ cd enverif
 ./install.sh
 ```
 
-Open `http://localhost:8080/install` and use Performance Mode when Redis is available.
+Then open the installer and select Performance Mode when Redis is available.
 
 ### Native VPS
 
@@ -144,117 +244,111 @@ composer install --no-dev --optimize-autoloader
 php artisan key:generate
 ```
 
-Point Nginx/Apache to `public/`, finish `/install`, then run queue workers and a scheduler under Supervisor/systemd.
+Point your web server at `public/`, complete `/install`, and run queue workers/scheduling under your preferred process manager.
 
-## Email automation
+See the [installation guide](docs/getting-started/installation.md), [shared-hosting guide](docs/hosting/shared-hosting.md) and [Hostinger guide](docs/hosting/hostinger.md).
+
+## Email is a first-class sales capability
 
 ### Gmail
 
-Create a Google OAuth web client, save its client ID/secret in a Gmail plugin connection, then click **Connect mailbox**. Actions: account, search, thread, draft, send, reply.
+Connect a Google OAuth client and give an employee permission to inspect the mailbox, search threads, prepare drafts, send or reply according to policy.
 
 ### Outlook
 
-Create a Microsoft Entra app with delegated `User.Read`, `Mail.ReadWrite`, `Mail.Send` and offline access, then connect it through the Outlook plugin.
+Connect Microsoft Graph through an Entra application with delegated mail permissions.
 
 ### SMTP
 
-Use SMTP for Hostinger Email, cPanel mailboxes or any standard provider. Host/port/encryption/from identity are configuration; username/password are encrypted credentials.
+Use Hostinger Email, cPanel mailboxes or any standard SMTP provider with encrypted credentials.
 
-**Safety invariant:** email `send` and `reply` remain `external_write` actions. They require approval unless the executing agent/workflow explicitly enables autonomous external writes.
+Email `send` and `reply` are treated as `external_write` actions. They remain approval-first unless autonomous external writes are deliberately enabled for the executing employee/workflow.
 
-## Visual workflows
+## Skills, plugins and MCP
 
-The workflow engine is durable, not a browser-only diagrammer. Nodes and transitions are persisted so delays, agent delegation, queue restarts and human approvals can resume safely.
+Enverif is meant to grow beyond the integrations that ship in the repository.
 
-Supported nodes:
+- **Skills** are reusable job knowledge packaged as `SKILL.md` content.
+- **Plugins / connections** expose authenticated capabilities and actions.
+- **MCP servers** expose remote tools through the Model Context Protocol.
+- **Workflows** compose deterministic and agentic execution into repeatable operations.
 
-```text
-Manual / Schedule / Webhook
-        ↓
-Agent → Plugin → Skill → Condition ─ true/false
-                         ↓
-                 Delay / Lead / Campaign
-                         ↓
-                    Approval → Output
-```
-
-Use context expressions such as `{{input.company}}`, `{{nodes.research.email}}` and `{{previous.lead_id}}`.
-
-## Safety model
-
-Tool calls declare one of:
-
-`read` · `internal_write` · `network` · `external_write` · `secrets` · `destructive`
-
-1. Explicit deny wins.
-2. Read/internal operations stay fast by default.
-3. External writes ask unless autonomous writes are deliberately enabled.
-4. Secret-bearing operations always ask.
-5. Destructive actions are denied by default and still require approval when enabled.
-6. Delegated child agents inherit the strictest policy ceiling of every ancestor.
-7. A chat-tagged plugin is exposed only for that immutable run and only inside the current workspace.
+Trusted Git-hosted skills retain provenance/checksum metadata and pass security scanning before installation. External connectors keep their own developer attribution instead of being relabeled as first-party Enverif integrations.
 
 ## Architecture
 
 ```text
-Chat / UI / Schedules / Webhooks
-              │
-      Durable orchestration
-       ┌──────┴───────┐
-     Agents        Workflows
-       │               │
-  Model providers  Node engine
-       └──────┬────────┘
-              │
-   Capability policy + approvals
-              │
-   Tools / Plugins / Skills / MCP
-              │
-       MySQL authoritative state
-              │
-  Database queue OR Redis workers
+Chat / Schedules / Webhooks
+           │
+           ▼
+ Durable orchestration
+    ┌──────┴──────┐
+  Agents       Workflows
+    │              │
+ Models        Node engine
+    └──────┬───────┘
+           │
+ Capability policy + approvals
+           │
+ Plugins / Skills / MCP / Files
+           │
+ Leads / Campaigns / Activities
+           │
+ MySQL authoritative state
+           │
+ Database queue OR Redis workers
 ```
 
-See [docs/architecture.md](docs/architecture.md).
+See [docs/architecture.md](docs/architecture.md) for the deeper runtime model.
 
 ## Repository map
 
 ```text
-app/Core/Agents        agent loop, memory, delegation, tools, capability policy
-app/Core/Chat          bounded conversation context + tagged selections
-app/Core/Workflows     definition validation, templating, durable workflow engine
-app/Core/Email         OAuth token refresh, message building, email risk policy
-app/Core/Runtime       shared-host/runtime profiles, heartbeat, bounded tick, web cron
+app/Core/Agents        agent loop, memory, delegation, tools and capability policy
+app/Core/Chat          conversation context, files and structured selections
+app/Core/Workflows     validation, templating and durable workflow execution
+app/Core/Email         OAuth refresh, message building and email risk policy
+app/Core/Runtime       shared-host/runtime profiles, heartbeat and bounded tick
 app/Core/Connectors    plugin contracts and first-party drivers
-app/Core/Models        BYOK provider adapters
-app/Core/Skills        skill parser/installer/scanner
+app/Core/Models        BYOK provider adapters and model registry
+app/Core/Skills        skill parser, installer and security scanner
 app/Core/Mcp           MCP discovery and calls
-app/Core/Audit         hash-linked audit events
-plugins/builtin        first-party plugins — developer: Codefreex
+app/Core/Audit         durable audit events
+plugins/builtin        first-party capabilities
 plugins/external       third-party connector plugins
 skills/builtin         starter revenue skills
-docs                   operator + developer documentation
-scripts                 release verification, packaging and Pages build
+docs                   operator and developer documentation
+scripts                verification and release tooling
 ```
 
-## Contributors
+## Build and verify
 
-Contributions are welcome across **Core, Plugin/Connector, Skill, Translation, UI/UX, Documentation and Testing**. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/contributing/index.md](docs/contributing/index.md).
-
-For behavior changes, add a failing test first. At minimum run:
+For behavior changes, add a failing test first. The core local verification path is:
 
 ```bash
 php -d zend.assertions=1 -d assert.exception=1 tests/standalone/run.php
 php scripts/verify.php
 php artisan test
+npm run check
+npm run build
 ```
 
-CI additionally runs MySQL and both Redis/database-runtime paths.
+CI exercises PHP 8.3, 8.4 and 8.5, Redis-backed execution, database-only shared-hosting execution, the browser installer/login/core screens, the frontend build and workflow YAML validation.
 
-## Attribution
+## Contribute
 
-**Enverif is maintained by Codefreex.** First-party Enverif plugins use `developer: Codefreex`. Third-party plugins must retain their real author/developer attribution.
+Enverif is open source and designed to be extended.
+
+Contributions are welcome across **Core, Agents, Plugins/Connectors, Skills, Workflows, Models, Translations, UI/UX, Documentation and Testing**.
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/contributing/index.md](docs/contributing/index.md).
+
+If Enverif is useful to you, **star the repository, build an employee or integration for your workflow, and share what you automate.**
+
+## Maintainer
+
+Enverif is maintained by **Codefreex**. First-party Enverif integrations may identify Codefreex as their developer; third-party extensions retain their actual author/developer attribution.
 
 ## License
 
-Enverif is released under the [MIT License](LICENSE). External APIs, third-party plugins and upstream skill projects retain their own terms.
+Enverif is released under the [MIT License](LICENSE). External APIs, third-party plugins, model providers and upstream skill projects retain their own terms.

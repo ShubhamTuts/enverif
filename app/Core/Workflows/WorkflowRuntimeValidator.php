@@ -49,17 +49,21 @@ final class WorkflowRuntimeValidator
                                 ->whereNotNull('model_connection_id')
                                 ->whereHas('modelConnection', fn ($query) => $query->where('enabled', true))
                                 ->exists();
-                            if (!$readyExecutor) {
-                                $errors[] = "{$label}: skill nodes require at least one active agent with an enabled model connection.";
-                            }
+                            if (!$readyExecutor) $errors[] = "{$label}: skill nodes require at least one active agent with an enabled model connection.";
                         }
                         break;
                     case 'connector':
                         $connection = ConnectorConnection::whereKey((int) ($config['connection_id'] ?? 0))->where('enabled',true)->first();
                         if (!$connection) { $errors[] = "{$label}: select an enabled connector connection."; break; }
-                        $driver = $this->connectors->get($connection->driver);
-                        $action = trim((string) ($config['action'] ?? ''));
-                        if ($action === '' || !collect($driver->actions())->contains(fn ($item) => $item->name === $action)) $errors[] = "{$label}: selected connector action is unavailable.";
+                        $actionName = trim((string) ($config['action'] ?? ''));
+                        $action = collect($this->connectors->actionsFor($connection))->first(fn ($item) => $item->name === $actionName);
+                        if (!$action) {
+                            $errors[] = "{$label}: selected connector action is unavailable for this connection configuration.";
+                            break;
+                        }
+                        foreach ($this->validateArguments((array) $action->parameters, (array) ($config['arguments'] ?? [])) as $message) {
+                            $errors[] = "{$label}: {$message}";
+                        }
                         break;
                     case 'campaign':
                         if (!Campaign::whereKey((int) ($config['campaign_id'] ?? 0))->exists()) $errors[] = "{$label}: select an existing campaign.";
@@ -80,5 +84,37 @@ final class WorkflowRuntimeValidator
     {
         $errors = $this->validate($workflow);
         if ($errors) throw new \RuntimeException(implode(' ', $errors));
+    }
+
+    /** @param array<string,mixed> $schema @param array<string,mixed> $arguments @return list<string> */
+    private function validateArguments(array $schema, array $arguments): array
+    {
+        $errors = [];
+        foreach ((array) ($schema['required'] ?? []) as $required) {
+            $key = (string) $required;
+            if (!array_key_exists($key, $arguments) || $arguments[$key] === null || $arguments[$key] === '') {
+                $errors[] = "connector argument {$key} is required.";
+            }
+        }
+        foreach ((array) ($schema['properties'] ?? []) as $key => $property) {
+            if (!array_key_exists($key, $arguments) || !is_array($property)) continue;
+            $value = $arguments[$key];
+            if (is_string($value) && str_contains($value, '{{')) continue; // resolved at runtime.
+            $type = (string) ($property['type'] ?? '');
+            $valid = match ($type) {
+                'string' => is_string($value),
+                'integer' => is_int($value) || (is_string($value) && preg_match('/^-?\d+$/', $value) === 1),
+                'number' => is_int($value) || is_float($value) || (is_string($value) && is_numeric($value)),
+                'boolean' => is_bool($value) || in_array($value, [0,1,'0','1','true','false'], true),
+                'array' => is_array($value) && array_is_list($value),
+                'object' => is_array($value),
+                default => true,
+            };
+            if (!$valid) $errors[] = "connector argument {$key} must be {$type}.";
+            if (isset($property['enum']) && is_array($property['enum']) && !in_array($value, $property['enum'], true)) {
+                $errors[] = "connector argument {$key} has an unsupported value.";
+            }
+        }
+        return $errors;
     }
 }

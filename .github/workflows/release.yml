@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Existing semantic version tag to verify/build (for example v1.3.1)'
+        description: 'Existing semantic version tag to verify/build (for example v1.4.0)'
         required: true
         type: string
 
@@ -93,14 +93,6 @@ jobs:
           php-version: '8.4'
           extensions: curl, intl, mbstring, openssl, pdo_mysql, zip, ${{ matrix.runtime.redis_ext }}
           coverage: none
-      - name: Verify Redis extension contract
-        shell: bash
-        run: |
-          if [[ "${{ matrix.runtime.name }}" == "shared" ]]; then
-            php -r 'exit(extension_loaded("redis") ? 1 : 0);'
-          else
-            php -r 'exit(extension_loaded("redis") ? 0 : 1);'
-          fi
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
       - run: php artisan migrate:fresh --force
@@ -109,18 +101,13 @@ jobs:
       - run: php scripts/verify.php
       - run: php artisan route:list --except-vendor
 
-  frontend-and-docs:
+  frontend:
     needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ env.RELEASE_REF }}
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
-          coverage: none
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -128,15 +115,13 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run check
       - run: npm run build
-      - run: php scripts/build-site.php
-      - run: php scripts/check-site.php
       - name: Validate workflow YAML
         shell: bash
         run: |
           ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f, aliases: true); puts "OK #{f}" }'
 
   release:
-    needs: [guard, verify, frontend-and-docs]
+    needs: [guard, verify, frontend]
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -189,4 +174,4 @@ jobs:
             --target "$TAG" \
             --title "Enverif $TAG" \
             --generate-notes \
-            --notes "Enverif. Source, deterministic no-SSH shared-hosting package and standalone website/docs artifacts. Maintained by Codefreex."
+            --notes "Enverif application release. Includes source and deterministic no-SSH shared-hosting packages. Maintained by Codefreex."

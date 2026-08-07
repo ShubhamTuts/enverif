@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Core\Audit\AuditLogger;
 use App\Core\Connectors\ConnectorConfigurationValidator;
 use App\Core\Connectors\ConnectorManager;
+use App\Core\Plugins\PluginDependencyInspector;
 use App\Models\ConnectorConnection;
 use App\Support\EncryptedCredentials;
 use Illuminate\Http\Request;
@@ -63,9 +65,70 @@ final class ConnectorController extends Controller
         return back()->with($ok ? 'status' : 'error', $ok ? __('ui.connection_ok') : __('ui.connection_failed'));
     }
 
-    public function destroy(ConnectorConnection $connector)
+    public function toggle(Request $request, ConnectorConnection $connector, AuditLogger $audit)
     {
+        $enabled = ! (bool) $connector->enabled;
+        $connector->update(['enabled' => $enabled]);
+        $audit->record(
+            (int) $connector->workspace_id,
+            $enabled ? 'connector.enabled' : 'connector.disabled',
+            ConnectorConnection::class,
+            $connector->id,
+            ['driver' => $connector->driver, 'name' => $connector->name],
+            null,
+            $request->user()?->id,
+        );
+
+        return back()->with('status', $enabled ? 'Connection enabled.' : 'Connection disabled.');
+    }
+
+    public function disconnect(Request $request, ConnectorConnection $connector, AuditLogger $audit)
+    {
+        $connector->update([
+            'credentials' => [],
+            'enabled' => false,
+            'last_test_status' => 'disconnected',
+            'last_tested_at' => now(),
+        ]);
+        $audit->record(
+            (int) $connector->workspace_id,
+            'connector.disconnected',
+            ConnectorConnection::class,
+            $connector->id,
+            ['driver' => $connector->driver, 'name' => $connector->name],
+            null,
+            $request->user()?->id,
+        );
+
+        return back()->with('status', 'Connection credentials removed. Configuration and history were preserved.');
+    }
+
+    public function destroy(Request $request, ConnectorConnection $connector, PluginDependencyInspector $dependencies, AuditLogger $audit)
+    {
+        $summary = $dependencies->forConnection($connector);
+        if ((int) ($summary['blocking_count'] ?? 0) > 0) {
+            $message = 'Detach this connection from its agents and workflows before deleting it.';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message, 'dependencies' => $summary], 409);
+            }
+            abort(409, $message);
+        }
+
+        $workspaceId = (int) $connector->workspace_id;
+        $id = (int) $connector->id;
+        $driver = (string) $connector->driver;
+        $name = (string) $connector->name;
         $connector->delete();
+        $audit->record(
+            $workspaceId,
+            'connector.deleted',
+            ConnectorConnection::class,
+            $id,
+            ['driver' => $driver, 'name' => $name],
+            null,
+            $request->user()?->id,
+        );
+
         return back()->with('status', __('ui.deleted'));
     }
 
@@ -87,10 +150,7 @@ final class ConnectorController extends Controller
             try {
                 $existingCredentials = $existing->decryptedCredentials();
             } catch (\Throwable $e) {
-                if (! EncryptedCredentials::isDecryptFailure($e)) {
-                    throw $e;
-                }
-                // Allow recovery by re-entering secrets when APP_KEY changed.
+                if (! EncryptedCredentials::isDecryptFailure($e)) throw $e;
                 $existingCredentials = [];
             }
         }
@@ -118,9 +178,7 @@ final class ConnectorController extends Controller
             $submittedCredentials,
             static fn ($value): bool => $value !== null && (!is_string($value) || trim($value) !== ''),
         );
-        if ($existing) {
-            $credentials = array_merge($existingCredentials, $credentials);
-        }
+        if ($existing) $credentials = array_merge($existingCredentials, $credentials);
 
         return [
             'name' => (string) $request->input('name'),

@@ -109,12 +109,10 @@ final class InstallController extends Controller
         }
 
         $runtime = RuntimeProfileDetector::configuration($data['runtime_mode']);
-        if ($runtime['requires_redis']) {
-            $redisHost = trim((string) ($data['redis_host'] ?? ''));
-            $redisPort = (int) ($data['redis_port'] ?? 6379);
-            if (!$this->redisProbe($redisHost, $redisPort)) {
-                return back()->withErrors(['redis' => 'Performance Mode requires a reachable Redis server. Choose Shared Hosting Mode if Redis is unavailable.'])->withInput();
-            }
+        $redisHost = trim((string) ($data['redis_host'] ?? '')) ?: '127.0.0.1';
+        $redisPort = (int) ($data['redis_port'] ?? 6379);
+        if ($runtime['requires_redis'] && !$this->redisProbe($redisHost, $redisPort)) {
+            return back()->withErrors(['redis' => 'Performance Mode requires a reachable Redis server. Choose Shared Hosting Mode if Redis is unavailable.'])->withInput();
         }
 
         $key = config('app.key') ?: 'base64:' . base64_encode(random_bytes(32));
@@ -147,8 +145,8 @@ final class InstallController extends Controller
             'ENVERIF_TICK_BUDGET' => $tickBudget,
             'ENVERIF_WEB_CRON_ENABLED' => $data['runtime_mode'] === RuntimeProfileDetector::COMPATIBILITY,
             'ENVERIF_WEB_CRON_SECRET' => $webCronSecret,
-            'REDIS_HOST' => $data['redis_host'] ?: '127.0.0.1',
-            'REDIS_PORT' => $data['redis_port'] ?: 6379,
+            'REDIS_HOST' => $redisHost,
+            'REDIS_PORT' => $redisPort,
         ];
         $env->write(base_path('.env'), $values);
 
@@ -163,8 +161,8 @@ final class InstallController extends Controller
             'database.connections.mysql.database' => $data['db_database'],
             'database.connections.mysql.username' => $data['db_username'],
             'database.connections.mysql.password' => $data['db_password'] ?? '',
-            'database.redis.default.host' => $data['redis_host'] ?: '127.0.0.1',
-            'database.redis.default.port' => $data['redis_port'] ?: 6379,
+            'database.redis.default.host' => $redisHost,
+            'database.redis.default.port' => $redisPort,
             'cache.default' => $runtime['cache'],
             'queue.default' => $runtime['queue'],
             'session.path' => $basePath,

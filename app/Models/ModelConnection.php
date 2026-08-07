@@ -39,7 +39,11 @@ class ModelConnection extends Model
     public function credential(string $key): ?string
     {
         $data = $this->decryptedCredentials();
-
         return isset($data[$key]) ? (string) $data[$key] : null;
+    }
+
+    public function agents()
+    {
+        return $this->hasMany(Agent::class, 'model_connection_id');
     }
 }

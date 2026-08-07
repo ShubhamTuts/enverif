@@ -28,9 +28,27 @@ cleanup() {
 }
 trap cleanup EXIT
 
+fail() {
+  local message="$1"
+  local body="${2:-}"
+  echo "::error title=Installer smoke failure::$message"
+  echo "$message" >&2
+  if [[ -n "$body" && -f "$body" ]]; then
+    echo "--- response body ---" >&2
+    tail -n 120 "$body" >&2 || true
+  fi
+  if [[ -f "$SERVER_LOG" ]]; then
+    echo "--- Laravel server log ---" >&2
+    tail -n 160 "$SERVER_LOG" >&2 || true
+  fi
+  exit 1
+}
+
 start_server() {
   : > "$SERVER_LOG"
-  php artisan serve --host=127.0.0.1 --port="$PORT" >"$SERVER_LOG" 2>&1 &
+  # The installer intentionally rewrites .env. Disable Laravel's development
+  # server auto-reload so the active POST is not terminated mid-response.
+  php artisan serve --no-reload --host=127.0.0.1 --port="$PORT" >"$SERVER_LOG" 2>&1 &
   SERVER_PID=$!
   for _ in $(seq 1 40); do
     if curl -fsS "$BASE_URL/install" >/dev/null 2>&1; then
@@ -38,9 +56,7 @@ start_server() {
     fi
     sleep 0.5
   done
-  cat "$SERVER_LOG" >&2
-  echo "Laravel test server did not become ready." >&2
-  exit 1
+  fail "Laravel test server did not become ready at $BASE_URL/install."
 }
 
 stop_server() {
@@ -54,7 +70,9 @@ stop_server() {
 csrf_from() {
   local url="$1"
   local out="$2"
-  curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$url" -o "$out"
+  local code
+  code="$(curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" -o "$out" -w '%{http_code}' "$url")" || fail "Could not request CSRF page: $url" "$out"
+  [[ "$code" == "200" ]] || fail "Expected 200 while loading CSRF page $url, received $code." "$out"
   sed -n 's/.*name="_token" value="\([^"]*\)".*/\1/p' "$out" | head -n1
 }
 
@@ -62,17 +80,10 @@ assert_http_200() {
   local path="$1"
   local body="$WORK/body-$(echo "$path" | tr '/?' '__').html"
   local code
-  code="$(curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" -o "$body" -w '%{http_code}' "$BASE_URL$path")"
-  if [[ "$code" != "200" ]]; then
-    echo "Expected 200 for $path, received $code" >&2
-    cat "$body" >&2 || true
-    cat "$SERVER_LOG" >&2 || true
-    exit 1
-  fi
+  code="$(curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" -o "$body" -w '%{http_code}' "$BASE_URL$path")" || fail "Request failed for $path." "$body"
+  [[ "$code" == "200" ]] || fail "Expected 200 for $path, received $code." "$body"
   if grep -Eqi 'Internal Server Error|Server Error|ParseError|FatalError' "$body"; then
-    echo "Framework error page detected at $path" >&2
-    cat "$body" >&2
-    exit 1
+    fail "Framework error page detected at $path." "$body"
   fi
 }
 
@@ -85,7 +96,7 @@ php -r '$p=".env";$s=file_get_contents($p);$s=preg_replace("/^APP_KEY=.*$/m","AP
 start_server
 INSTALL_HTML="$WORK/install.html"
 TOKEN="$(csrf_from "$BASE_URL/install" "$INSTALL_HTML")"
-[[ -n "$TOKEN" ]] || { cat "$INSTALL_HTML" >&2; echo "Installer CSRF token missing." >&2; exit 1; }
+[[ -n "$TOKEN" ]] || fail "Installer CSRF token missing." "$INSTALL_HTML"
 
 curl -sS -D "$WORK/install.headers" -o "$WORK/install.response" \
   -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
@@ -105,14 +116,18 @@ curl -sS -D "$WORK/install.headers" -o "$WORK/install.response" \
   --data-urlencode "admin_password=$ADMIN_PASSWORD" \
   --data-urlencode "admin_password_confirmation=$ADMIN_PASSWORD" \
   --data-urlencode "workspace_name=Installer Workspace" \
-  "$BASE_URL/install"
+  "$BASE_URL/install" || fail "Installer POST request failed." "$WORK/install.response"
 
-if ! grep -Eiq '^location: .*\/login\r?$' "$WORK/install.headers"; then
-  echo "Installer did not redirect to login." >&2
-  cat "$WORK/install.headers" >&2
-  cat "$WORK/install.response" >&2
-  cat "$SERVER_LOG" >&2 || true
-  exit 1
+if ! tr -d '\r' < "$WORK/install.headers" | grep -Eiq '^location: .*/login$'; then
+  LOCATION="$(sed -n 's/^[Ll]ocation:[[:space:]]*//p' "$WORK/install.headers" | tr -d '\r' | tail -n1)"
+  FAILURE_HTML="$WORK/install.failure.html"
+  curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$BASE_URL/install" -o "$FAILURE_HTML" || true
+  ERROR_TEXT="$(grep -Eo '<li>[^<]+</li>' "$FAILURE_HTML" 2>/dev/null | sed -E 's#</?li>##g' | paste -sd ';' - || true)"
+  MESSAGE="Installer did not redirect to login"
+  [[ -n "$LOCATION" ]] && MESSAGE+="; Location: $LOCATION"
+  [[ -n "$ERROR_TEXT" ]] && MESSAGE+="; Error: $ERROR_TEXT"
+  cat "$WORK/install.headers" >&2 || true
+  fail "$MESSAGE" "$FAILURE_HTML"
 fi
 
 stop_server
@@ -122,20 +137,20 @@ start_server
 
 LOGIN_HTML="$WORK/login.html"
 LOGIN_TOKEN="$(csrf_from "$BASE_URL/login" "$LOGIN_HTML")"
-[[ -n "$LOGIN_TOKEN" ]] || { cat "$LOGIN_HTML" >&2; echo "Login CSRF token missing." >&2; exit 1; }
+[[ -n "$LOGIN_TOKEN" ]] || fail "Login CSRF token missing." "$LOGIN_HTML"
 
 curl -sS -D "$WORK/login.headers" -o "$WORK/login.response" \
   -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
   --data-urlencode "_token=$LOGIN_TOKEN" \
   --data-urlencode "email=$ADMIN_EMAIL" \
   --data-urlencode "password=$ADMIN_PASSWORD" \
-  "$BASE_URL/login"
+  "$BASE_URL/login" || fail "Login POST request failed." "$WORK/login.response"
 
-if ! grep -Eiq '^location: ' "$WORK/login.headers" || grep -Eiq '^location: .*/login\r?$' "$WORK/login.headers"; then
-  echo "Login did not redirect to the chat root." >&2
-  cat "$WORK/login.headers" >&2
-  cat "$WORK/login.response" >&2
-  exit 1
+LOGIN_HEADERS="$WORK/login.headers.normalized"
+tr -d '\r' < "$WORK/login.headers" > "$LOGIN_HEADERS"
+if ! grep -Eiq '^location: ' "$LOGIN_HEADERS" || grep -Eiq '^location: .*/login$' "$LOGIN_HEADERS"; then
+  cat "$WORK/login.headers" >&2 || true
+  fail "Login did not redirect to the chat root." "$WORK/login.response"
 fi
 
 for path in / /agents /agents/create /workflows /workflows/create /connectors /skills /models /mcp /settings; do
@@ -143,10 +158,9 @@ for path in / /agents /agents/create /workflows /workflows/create /connectors /s
 done
 
 ROOT_HTML="$WORK/body-_.html"
-grep -q 'data-chat-shell' "$ROOT_HTML" || { echo "Authenticated root did not render the chat shell." >&2; exit 1; }
+grep -q 'data-chat-shell' "$ROOT_HTML" || fail "Authenticated root did not render the chat shell." "$ROOT_HTML"
 if grep -q 'BY CODEFREEX' "$ROOT_HTML"; then
-  echo "Product lockup still contains BY CODEFREEX." >&2
-  exit 1
+  fail "Product lockup still contains BY CODEFREEX." "$ROOT_HTML"
 fi
 
 echo "Fresh HTTP installer/login/core-screen smoke passed."

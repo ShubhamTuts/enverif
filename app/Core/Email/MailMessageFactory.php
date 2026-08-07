@@ -21,13 +21,11 @@ final class MailMessageFactory
         if (!empty($arguments['reply_to'])) $email->replyTo(self::address((string) $arguments['reply_to']));
         if (!empty($arguments['html'])) $email->html($body)->text(strip_tags($body)); else $email->text($body);
 
-        if (!empty($arguments['message_id'])) {
-            $id = trim(str_replace(["\r", "\n"], '', (string) $arguments['message_id']));
-            if ($id !== '') {
-                $email->getHeaders()->addTextHeader('In-Reply-To', $id);
-                $email->getHeaders()->addTextHeader('References', $id);
-            }
-        }
+        $inReplyTo = self::headerValue((string) ($arguments['in_reply_to'] ?? $arguments['message_id'] ?? ''));
+        $references = self::headerValue((string) ($arguments['references'] ?? $inReplyTo));
+        if ($inReplyTo !== '') $email->getHeaders()->addTextHeader('In-Reply-To', $inReplyTo);
+        if ($references !== '') $email->getHeaders()->addTextHeader('References', $references);
+
         return $email;
     }
 
@@ -36,6 +34,11 @@ final class MailMessageFactory
         $value = trim($value);
         if (!filter_var($value, FILTER_VALIDATE_EMAIL)) throw new \InvalidArgumentException('A valid email address is required.');
         return $value;
+    }
+
+    private static function headerValue(string $value): string
+    {
+        return trim(str_replace(["\r", "\n"], '', $value));
     }
 
     public static function base64Url(string $raw): string

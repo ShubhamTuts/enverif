@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Core\Mcp\McpClient;
+use App\Core\Security\OutboundEndpointPolicy;
 use App\Models\McpServer;
 use App\Support\EncryptedCredentials;
 use Illuminate\Http\Request;
@@ -20,9 +21,9 @@ final class McpServerController extends Controller
         return view('mcp.form', ['server' => new McpServer(['transport' => 'http'])]);
     }
 
-    public function store(Request $r)
+    public function store(Request $r, OutboundEndpointPolicy $endpoints)
     {
-        McpServer::create($this->data($r));
+        McpServer::create($this->data($r, $endpoints));
         return redirect()->route('mcp.index')->with('status', __('ui.saved'));
     }
 
@@ -31,15 +32,16 @@ final class McpServerController extends Controller
         return view('mcp.form', ['server' => $mcp]);
     }
 
-    public function update(Request $r, McpServer $mcp)
+    public function update(Request $r, McpServer $mcp, OutboundEndpointPolicy $endpoints)
     {
-        $mcp->update($this->data($r, $mcp));
+        $mcp->update($this->data($r, $endpoints, $mcp));
         return redirect()->route('mcp.index')->with('status', __('ui.saved'));
     }
 
-    public function test(McpServer $mcp)
+    public function test(McpServer $mcp, OutboundEndpointPolicy $endpoints)
     {
         try {
+            $endpoints->assertAllowed((string) $mcp->endpoint);
             $data = (new McpClient($mcp))->discover();
             return back()->with('status', 'MCP connected: '.($data['serverInfo']['name'] ?? $mcp->name));
         } catch (\Throwable $e) {
@@ -56,7 +58,7 @@ final class McpServerController extends Controller
         return back()->with('status', __('ui.deleted'));
     }
 
-    private function data(Request $r, ?McpServer $existing = null): array
+    private function data(Request $r, OutboundEndpointPolicy $endpoints, ?McpServer $existing = null): array
     {
         $d = $r->validate([
             'name' => 'required|max:120',
@@ -66,31 +68,24 @@ final class McpServerController extends Controller
             'protocol_version' => 'required|in:2025-11-25,2026-07-28',
             'enabled' => 'nullable|boolean',
         ]);
-        abort_unless(
-            str_starts_with($d['endpoint'], 'https://') || app()->environment('local'),
-            422,
-            'Remote MCP endpoints must use HTTPS.',
-        );
+        $endpoints->assertAllowed((string) $d['endpoint']);
+        if ($existing && trim((string) $existing->endpoint) !== trim((string) $d['endpoint']) && empty($d['token'])) {
+            throw ValidationException::withMessages([
+                'token' => 'Re-enter the bearer token when changing the endpoint so a stored secret cannot be silently forwarded to a new host.',
+            ]);
+        }
 
         $credentials = [];
         if ($existing) {
             try {
                 $credentials = $existing->decryptedCredentials();
             } catch (\Throwable $e) {
-                if (! EncryptedCredentials::isDecryptFailure($e)) {
-                    throw $e;
-                }
-                if (empty($d['token'])) {
-                    throw ValidationException::withMessages([
-                        'token' => EncryptedCredentials::MCP_DECRYPT_MESSAGE,
-                    ]);
-                }
+                if (! EncryptedCredentials::isDecryptFailure($e)) throw $e;
+                if (empty($d['token'])) throw ValidationException::withMessages(['token' => EncryptedCredentials::MCP_DECRYPT_MESSAGE]);
                 $credentials = [];
             }
         }
-        if (! empty($d['token'])) {
-            $credentials['token'] = $d['token'];
-        }
+        if (! empty($d['token'])) $credentials['token'] = $d['token'];
 
         return [
             'name' => $d['name'],

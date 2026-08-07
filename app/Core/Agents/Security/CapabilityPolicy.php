@@ -24,17 +24,10 @@ final class CapabilityPolicy
         if ($tool !== '' && $this->matchesAny($tool, $this->deny)) {
             return CapabilityDecision::Deny;
         }
-        if ($tool !== '' && $this->matchesAny($tool, $this->allow)) {
-            // Destructive and secret-bearing operations always retain a human checkpoint.
-            if ($risk === RiskLevel::Destructive) {
-                return $this->allowDestructive ? CapabilityDecision::Ask : CapabilityDecision::Deny;
-            }
-            if ($risk === RiskLevel::Secrets) {
-                return CapabilityDecision::Ask;
-            }
-            return CapabilityDecision::Allow;
-        }
 
+        // Tool allow-patterns never weaken the risk boundary. In particular,
+        // external writes remain approval-gated unless the agent explicitly has
+        // autonomous external writes enabled.
         return match ($risk) {
             RiskLevel::Read, RiskLevel::InternalWrite, RiskLevel::Network => CapabilityDecision::Allow,
             RiskLevel::ExternalWrite => $this->allowExternalWrites

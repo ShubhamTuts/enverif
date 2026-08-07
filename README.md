@@ -32,6 +32,10 @@
 
 ---
 
+## Enverif 1.3.9
+
+The current release line combines the agentic chat, sales-orchestration and production-hardening work into one self-hosted AI sales workspace. See the [changelog](CHANGELOG.md) for release-by-release details.
+
 ## Hire AI employees, not another chatbot
 
 Most AI tools wait for another prompt.
@@ -85,7 +89,7 @@ These are roles, not hard-coded bots. An Enverif agent is configured from its in
 
 Enverif brings the operating pieces into one system:
 
-- **Agentic chat** — talk to the whole revenue workspace from one ChatGPT-style interface. Mention `@agents`, `@plugins`, `@skills`, `@workflows`, `@leads` and `@campaigns`, attach private files and choose the right model/effort for the job.
+- **Agentic chat** — talk to the revenue workspace from one ChatGPT-style interface. Choose the active agent, mention `@plugins`, `@skills`, `@workflows`, `@leads` and `@campaigns`, attach private files and choose the right model/effort for the job.
 - **Persistent AI agents** — each employee has instructions, model preferences, skills, tool permissions, memory, limits, schedules and delegation controls.
 - **Lead workspace** — keep prospects, scores, research summaries, provenance and activity history as durable business state.
 - **Campaigns** — organize prospects and ordered sales steps instead of leaving outreach context inside isolated chats.

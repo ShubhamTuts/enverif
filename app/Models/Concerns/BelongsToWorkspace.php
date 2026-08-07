@@ -4,7 +4,6 @@ namespace App\Models\Concerns;
 
 use App\Support\WorkspaceContext;
 use Illuminate\Database\Eloquent\Builder;
-use LogicException;
 
 /**
  * Applies the active workspace as a fail-closed global Eloquent scope.
@@ -26,15 +25,8 @@ trait BelongsToWorkspace
         });
 
         static::creating(function ($model): void {
-            $context = app(WorkspaceContext::class);
-
             if (!$model->workspace_id) {
-                $model->workspace_id = $context->requireId();
-                return;
-            }
-
-            if ($context->has() && (int) $model->workspace_id !== $context->requireId()) {
-                throw new LogicException('Cannot create a tenant record for a different workspace than the active workspace context.');
+                $model->workspace_id = app(WorkspaceContext::class)->requireId();
             }
         });
     }

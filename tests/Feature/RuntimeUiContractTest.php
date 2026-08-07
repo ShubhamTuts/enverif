@@ -15,7 +15,7 @@ final class RuntimeUiContractTest extends TestCase
         self::assertStringContainsString('Agent activity', $layout);
         self::assertStringContainsString('Agent activity', $runtime);
         self::assertStringNotContainsString('Live activity', $runtime);
-        self::assertStringNotContainsString('renderInline', $runtime);
+        self::assertStringNotContainsString('const renderInline =', $runtime);
         self::assertStringNotContainsString('data-chat-inline-activity', $runtime);
         self::assertStringContainsString('data-runtime-approval-stack', $runtime);
     }

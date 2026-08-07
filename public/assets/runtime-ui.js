@@ -1,5 +1,5 @@
 (() => {
-    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[char]));
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
     const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
     const terminal = (status) => ['completed', 'failed', 'cancelled'].includes(String(status || ''));
     const timeLabel = (value) => {
@@ -7,6 +7,7 @@
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     };
+
     const ensureToast = () => {
         let toast = document.querySelector('[data-runtime-toast]');
         if (toast) return toast;
@@ -26,6 +27,9 @@
         toast.hidden = false;
         window.setTimeout(() => { toast.hidden = true; }, 7000);
     };
+
+    // Dependency-aware destructive confirmations stay global so connectors, models,
+    // plugins and future integrations all use the same lifecycle UX.
     let pendingDestructiveForm = null;
     const ensureConfirmDialog = () => {
         let dialog = document.querySelector('[data-destructive-dialog]');
@@ -98,6 +102,8 @@
             form.requestSubmit();
         }
     }, true);
+
+    // Global Action Center count and approval notification.
     const actionCenter = document.querySelector('[data-action-center-url]');
     if (actionCenter) {
         const url = actionCenter.dataset.actionCenterUrl || actionCenter.getAttribute('href');
@@ -139,6 +145,8 @@
             }
         });
     }
+
+    // Global runtime feed keeps chat history status useful even after navigating away.
     const runtimeFeedUrl = document.body.dataset.runtimeFeedUrl || '';
     if (runtimeFeedUrl) {
         const stateKey = `enverif-runtime:${document.body.dataset.runtimeWorkspace || runtimeFeedUrl}`;
@@ -154,7 +162,8 @@
         };
         const renderFeed = (items) => {
             for (const item of items) {
-                const link = [...document.querySelectorAll('[data-chat-history-thread]')].find((node) => String(node.dataset.chatHistoryThread) === String(item.thread_id));
+                const link = [...document.querySelectorAll('[data-chat-history-thread]')]
+                    .find((node) => String(node.dataset.chatHistoryThread) === String(item.thread_id));
                 if (!link) continue;
                 link.dataset.runtimeStatus = item.status;
                 let status = link.querySelector('[data-chat-history-status]');
@@ -197,12 +206,14 @@
             }
         });
     }
+
     const shell = document.querySelector('[data-chat-shell]');
     if (!shell) return;
     const chatScroll = shell.querySelector('[data-chat-scroll]');
     let projection = null;
     let pollTimer = null;
     let lastApprovalCount = -1;
+
     const activityUrl = () => {
         const direct = shell.dataset.activityUrl || '';
         if (direct) return direct;
@@ -212,6 +223,7 @@
     };
     const approvalStack = () => shell.querySelector('[data-runtime-approval-stack]');
     const inlineActivity = () => shell.querySelector('[data-chat-inline-activity]');
+
     const backdrop = document.createElement('div');
     backdrop.className = 'runtime-drawer-backdrop';
     const drawer = document.createElement('aside');
@@ -224,6 +236,7 @@
     backdrop.addEventListener('click', closeDrawer);
     drawer.querySelector('[data-runtime-drawer-close]')?.addEventListener('click', closeDrawer);
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeDrawer(); });
+
     const depthMap = (runs) => {
         const map = new Map(runs.map((run) => [String(run.id), run]));
         const depth = new Map();
@@ -322,9 +335,14 @@
         const trigger = event.target.closest?.('[data-chat-thread-run], [data-chat-thinking]');
         if (trigger && shell.contains(trigger) && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDrawer(); }
     });
+
+    // app.js replaces only the transcript HTML while polling. Repaint the durable
+    // projection immediately when those mounts are recreated so approvals/activity
+    // never disappear between refreshes or transcript updates.
     if (chatScroll && typeof MutationObserver !== 'undefined') {
         new MutationObserver(() => renderProjection()).observe(chatScroll, {childList:true, subtree:true});
     }
+
     fetchActivity();
     window.addEventListener('beforeunload', () => { if (pollTimer) window.clearTimeout(pollTimer); });
 })();

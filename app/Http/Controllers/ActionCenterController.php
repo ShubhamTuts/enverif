@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Core\Approvals\ApprovalLifecycle;
 use App\Models\Approval;
+use App\Support\WorkspaceContext;
 use Illuminate\Http\Request;
 
 final class ActionCenterController extends Controller
 {
-    public function __invoke(Request $request)
+    public function __invoke(Request $request, ApprovalLifecycle $lifecycle, WorkspaceContext $workspace)
     {
+        $lifecycle->closeStaleForWorkspace($workspace->requireId());
+
         $query = Approval::query()->latest();
         $status = (string) $request->input('status', 'pending');
         if (in_array($status, ['pending', 'approved', 'denied'], true)) $query->where('status', $status);

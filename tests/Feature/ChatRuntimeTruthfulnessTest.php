@@ -258,7 +258,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
         ]);
         self::assertTrue($campaignResult->ok);
         $campaignId = (int) data_get($campaignResult->data, 'campaign_id');
-        $this->assertDatabaseHas('campaign_lead', [
+        $this->assertDatabaseHas('campaign_members', [
             'campaign_id' => $campaignId,
             'lead_id' => $emailOnly->id,
             'status' => 'needs_enrichment',

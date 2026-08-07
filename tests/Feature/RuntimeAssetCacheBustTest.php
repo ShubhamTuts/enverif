@@ -13,6 +13,7 @@ final class RuntimeAssetCacheBustTest extends TestCase
         self::assertIsString($layout);
         self::assertStringContainsString("@filemtime(public_path('assets/runtime-ui.js'))", $layout);
         self::assertStringContainsString('$runtimeAssetVersion', $layout);
+        self::assertStringContainsString('rawurlencode($runtimeAssetVersion)', $layout);
     }
 
     public function test_chat_application_javascript_cache_key_changes_when_served_file_changes(): void
@@ -22,6 +23,6 @@ final class RuntimeAssetCacheBustTest extends TestCase
         self::assertIsString($layout);
         self::assertStringContainsString("@filemtime(public_path('assets/app.js'))", $layout);
         self::assertStringContainsString('$appAssetVersion', $layout);
-        self::assertStringContainsString("assets/app.js?v={{ $appAssetVersion }}", $layout);
+        self::assertStringContainsString('rawurlencode($appAssetVersion)', $layout);
     }
 }

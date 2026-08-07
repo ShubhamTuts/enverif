@@ -3,6 +3,7 @@
 namespace App\Core\Agents\Tools;
 
 use App\Core\Agents\Contracts\RiskLevel;
+use App\Core\Agents\Execution\ExternalActionExecutor;
 use App\Core\Agents\Tools\Contracts\AgentTool;
 use App\Core\Agents\Tools\DTO\ToolExecutionResult;
 use App\Core\Agents\Tools\FirstParty\{AgentListTool, CampaignCreateTool, DelegateAgentTool, LeadActivityTool, LeadBulkUpsertTool, LeadSearchTool, LeadUpsertTool, MemoryForgetTool, MemoryRememberTool, MemorySearchTool};
@@ -16,8 +17,11 @@ final class ToolRegistry
     /** @var array<string,AgentTool> */
     private array $local = [];
 
-    public function __construct(private readonly ConnectorManager $connectors, private readonly McpManager $mcp)
-    {
+    public function __construct(
+        private readonly ConnectorManager $connectors,
+        private readonly McpManager $mcp,
+        private readonly ExternalActionExecutor $externalActions,
+    ) {
         foreach ([
             new AgentListTool,
             new DelegateAgentTool,
@@ -110,6 +114,47 @@ final class ToolRegistry
 
     public function execute(AgentRun $run, string $name, array $arguments): ToolExecutionResult
     {
+        $step = $run->steps()
+            ->where('status', 'running')
+            ->where('tool', $name)
+            ->orderBy('sequence')
+            ->first();
+        $risk = $step && $step->risk_level
+            ? RiskLevel::from((string) $step->risk_level)
+            : $this->risk(
+                $run->agent,
+                $name,
+                array_map('intval', (array) data_get($run->context, 'selected_connector_ids', [])),
+                (array) data_get($run->context, 'agent_snapshot.connectors', []),
+            );
+
+        if (!$this->isMutation($risk)) {
+            return $this->executeDirect($run, $name, $arguments);
+        }
+
+        $stepKey = $step ? (string) $step->id : 'tool-' . hash('sha256', $name . '|' . json_encode($arguments, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $normalized = $this->externalActions->execute(
+            (int) $run->workspace_id,
+            'agent',
+            (string) $run->id,
+            $stepKey,
+            $name,
+            $arguments,
+            function () use ($run, $name, $arguments): array {
+                $result = $this->executeDirect($run, $name, $arguments);
+                return ['ok' => $result->ok, 'data' => $result->data, 'message' => $result->message];
+            },
+        );
+
+        return new ToolExecutionResult(
+            (bool) ($normalized['ok'] ?? false),
+            $normalized['data'] ?? null,
+            isset($normalized['message']) ? (string) $normalized['message'] : null,
+        );
+    }
+
+    private function executeDirect(AgentRun $run, string $name, array $arguments): ToolExecutionResult
+    {
         if (isset($this->local[$name])) return $this->local[$name]->execute($run, $arguments);
 
         if (str_starts_with($name, 'connector.')) {
@@ -152,5 +197,15 @@ final class ToolRegistry
         }
 
         return ToolExecutionResult::failure('Unknown tool: ' . $name);
+    }
+
+    private function isMutation(RiskLevel $risk): bool
+    {
+        return in_array($risk, [
+            RiskLevel::InternalWrite,
+            RiskLevel::ExternalWrite,
+            RiskLevel::Destructive,
+            RiskLevel::Secrets,
+        ], true);
     }
 }

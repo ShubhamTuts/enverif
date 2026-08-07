@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureInstalled;
+use App\Http\Middleware\LockChatSubmission;
 use App\Http\Middleware\PrepareInstallerRuntime;
 use App\Http\Middleware\RequireWorkspaceCapability;
 use App\Http\Middleware\SetLocale;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'installed' => EnsureInstalled::class,
             'workspace' => UseWorkspace::class,
             'workspace.capability' => RequireWorkspaceCapability::class,
+            'chat.lock' => LockChatSubmission::class,
         ]);
         // Tenant context must exist before implicit route-model binding queries any
         // BelongsToWorkspace model. Authentication remains ahead of this middleware

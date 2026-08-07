@@ -119,8 +119,15 @@ curl -sS -D "$WORK/install.headers" -o "$WORK/install.response" \
   "$BASE_URL/install" || fail "Installer POST request failed." "$WORK/install.response"
 
 if ! grep -Eiq '^location: .*\/login\r?$' "$WORK/install.headers"; then
+  LOCATION="$(sed -n 's/^[Ll]ocation:[[:space:]]*//p' "$WORK/install.headers" | tr -d '\r' | tail -n1)"
+  FAILURE_HTML="$WORK/install.failure.html"
+  curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$BASE_URL/install" -o "$FAILURE_HTML" || true
+  ERROR_TEXT="$(grep -Eo '<li>[^<]+</li>' "$FAILURE_HTML" 2>/dev/null | sed -E 's#</?li>##g' | paste -sd ';' - || true)"
+  MESSAGE="Installer did not redirect to login"
+  [[ -n "$LOCATION" ]] && MESSAGE+="; Location: $LOCATION"
+  [[ -n "$ERROR_TEXT" ]] && MESSAGE+="; Error: $ERROR_TEXT"
   cat "$WORK/install.headers" >&2 || true
-  fail "Installer did not redirect to login." "$WORK/install.response"
+  fail "$MESSAGE" "$FAILURE_HTML"
 fi
 
 stop_server

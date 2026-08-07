@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\{AgentController,AgentMemoryController,ApprovalController,AuditController,AuthController,CampaignController,ChatAttachmentController,ChatController,ConnectorController,ConnectorOAuthController,DashboardController,InstallController,LeadController,McpServerController,ModelConnectionController,PluginAssetController,RunController,ScheduleController,SettingsController,SkillController,SystemCronController,WorkflowController,WorkflowRunController,WorkflowWebhookController};
+use App\Http\Controllers\{ActionCenterController,AgentController,AgentMemoryController,ApprovalController,AuditController,AuthController,CampaignController,ChatActivityController,ChatAttachmentController,ChatController,ConnectorController,ConnectorOAuthController,DashboardController,InstallController,LeadController,McpServerController,ModelConnectionController,PluginAssetController,RunController,ScheduleController,SettingsController,SkillController,SystemCronController,WorkflowController,WorkflowRunController,WorkflowWebhookController};
 use Illuminate\Support\Facades\Route;
 
 Route::get('/install', [InstallController::class, 'index'])->name('install.index');
@@ -20,6 +20,7 @@ Route::middleware('installed')->group(function () {
         Route::get('/chats/{thread}', [ChatController::class, 'show'])->name('chat.show');
         Route::post('/chats/{thread?}', [ChatController::class, 'send'])->name('chat.send');
         Route::get('/chats/{thread}/status', [ChatController::class, 'status'])->name('chat.status');
+        Route::get('/chats/{thread}/activity', ChatActivityController::class)->name('chat.activity');
         Route::post('/chats/{thread}/stop', [ChatController::class, 'stop'])->name('chat.stop');
         Route::put('/chats/{thread}/rename', [ChatController::class, 'rename'])->name('chat.rename');
         Route::post('/chats/{thread}/archive', [ChatController::class, 'archive'])->name('chat.archive');
@@ -85,7 +86,8 @@ Route::middleware('installed')->group(function () {
             Route::post('/mcp/{mcp}/test', [McpServerController::class, 'test'])->name('mcp.test');
         });
 
-        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+        Route::get('/approvals', [ApprovalController::class, 'index'])->middleware('workspace.capability:decide-approvals')->name('approvals.index');
+        Route::get('/action-center', ActionCenterController::class)->middleware('workspace.capability:decide-approvals')->name('action-center.index');
         Route::post('/approvals/{approval}', [ApprovalController::class, 'decide'])->middleware('workspace.capability:decide-approvals')->name('approvals.decide');
 
         Route::middleware('workspace.capability:view-audit')->group(function () {

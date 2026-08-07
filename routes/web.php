@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\{ActionCenterController,AgentController,AgentMemoryController,ApprovalController,AuditController,AuthController,CampaignController,ChatActivityController,ChatAttachmentController,ChatController,ConnectorController,ConnectorOAuthController,DashboardController,InstallController,LeadController,McpServerController,ModelConnectionController,PluginAssetController,RunController,ScheduleController,SettingsController,SkillController,SystemCronController,WorkflowController,WorkflowRunController,WorkflowWebhookController};
+use App\Http\Controllers\{ActionCenterController,AgentController,AgentMemoryController,ApprovalController,AuditController,AuthController,CampaignController,ChatActivityController,ChatAttachmentController,ChatController,ConnectorController,ConnectorOAuthController,DashboardController,InstallController,LeadController,McpServerController,ModelConnectionController,PluginAssetController,PluginController,RunController,ScheduleController,SettingsController,SkillController,SystemCronController,WorkflowController,WorkflowRunController,WorkflowWebhookController};
 use Illuminate\Support\Facades\Route;
 
 Route::get('/install', [InstallController::class, 'index'])->name('install.index');
@@ -75,9 +75,13 @@ Route::middleware('installed')->group(function () {
 
             Route::resource('connectors', ConnectorController::class)->except('show');
             Route::post('/connectors/{connector}/test', [ConnectorController::class, 'test'])->name('connectors.test');
+            Route::post('/connectors/{connector}/toggle', [ConnectorController::class, 'toggle'])->name('connectors.toggle');
+            Route::post('/connectors/{connector}/disconnect', [ConnectorController::class, 'disconnect'])->name('connectors.disconnect');
             Route::get('/connectors/{connector}/oauth/start', [ConnectorOAuthController::class, 'start'])->name('connectors.oauth.start');
             Route::post('/connectors/{connector}/oauth/disconnect', [ConnectorOAuthController::class, 'disconnect'])->name('connectors.oauth.disconnect');
             Route::get('/connectors/oauth/{driver}/callback', [ConnectorOAuthController::class, 'callback'])->name('connectors.oauth.callback');
+            Route::get('/plugins/{plugin}/dependencies', [PluginController::class, 'dependencies'])->where('plugin','[a-z0-9-]+')->name('plugins.dependencies');
+            Route::delete('/plugins/{plugin}', [PluginController::class, 'destroy'])->where('plugin','[a-z0-9-]+')->name('plugins.destroy');
 
             Route::resource('models', ModelConnectionController::class)->except('show')->parameters(['models'=>'model']);
             Route::post('/models/{model}/test', [ModelConnectionController::class, 'test'])->name('models.test');

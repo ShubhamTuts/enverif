@@ -6,7 +6,7 @@ use App\Core\Agents\Contracts\RiskLevel;
 use App\Core\Agents\Execution\ExternalActionExecutor;
 use App\Core\Agents\Tools\Contracts\AgentTool;
 use App\Core\Agents\Tools\DTO\ToolExecutionResult;
-use App\Core\Agents\Tools\FirstParty\{AgentListTool, CampaignCreateTool, DelegateAgentTool, LeadActivityTool, LeadBulkUpsertTool, LeadSearchTool, LeadUpsertTool, MemoryForgetTool, MemoryRememberTool, MemorySearchTool};
+use App\Core\Agents\Tools\FirstParty\{AgentListTool, CampaignCreateTool, DelegateAgentTool, LeadActivityTool, LeadBulkUpsertTool, LeadSearchTool, LeadUpsertTool, MemoryForgetTool, MemoryRememberTool, MemorySearchTool, ScheduleListTool, ScheduleUpsertTool};
 use App\Core\Connectors\ConnectorManager;
 use App\Core\Mcp\McpManager;
 use App\Core\Models\ToolSchemaNormalizer;
@@ -30,6 +30,8 @@ final class ToolRegistry
             new LeadBulkUpsertTool,
             new LeadActivityTool,
             new CampaignCreateTool,
+            new ScheduleListTool,
+            new ScheduleUpsertTool,
             new MemorySearchTool,
             new MemoryRememberTool,
             new MemoryForgetTool,

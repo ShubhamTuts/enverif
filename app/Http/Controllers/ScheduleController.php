@@ -80,8 +80,14 @@ final class ScheduleController
             'enabled' => 'nullable|boolean',
         ]);
         $data['enabled'] = $request->boolean('enabled');
+
         try {
-            return $this->schedules->upsert((int) session('workspace_id'), $data, $schedule);
+            $workspaceId = (int) session('workspace_id');
+            if ($schedule === null) {
+                return AgentSchedule::create($this->schedules->normalize($workspaceId, $data));
+            }
+
+            return $this->schedules->upsert($workspaceId, $data, $schedule);
         } catch (\InvalidArgumentException $e) {
             throw ValidationException::withMessages(['schedule' => $e->getMessage()]);
         }

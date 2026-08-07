@@ -108,7 +108,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ env.RELEASE_REF }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -135,7 +135,7 @@ jobs:
           php-version: '8.4'
           extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
           coverage: none
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -171,7 +171,7 @@ jobs:
             exit 1
           fi
           gh release create "$TAG" dist/*.zip dist/SHA256SUMS.txt \
-            --target "$TAG" \
+            --verify-tag \
             --title "Enverif $TAG" \
             --generate-notes \
             --notes "Enverif application release. Includes source and deterministic no-SSH shared-hosting packages. Maintained by Codefreex."

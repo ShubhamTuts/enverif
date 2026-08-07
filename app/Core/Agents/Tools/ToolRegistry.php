@@ -5,7 +5,7 @@ namespace App\Core\Agents\Tools;
 use App\Core\Agents\Contracts\RiskLevel;
 use App\Core\Agents\Tools\Contracts\AgentTool;
 use App\Core\Agents\Tools\DTO\ToolExecutionResult;
-use App\Core\Agents\Tools\FirstParty\{AgentListTool, DelegateAgentTool, LeadActivityTool, LeadSearchTool, LeadUpsertTool, MemoryForgetTool, MemoryRememberTool, MemorySearchTool};
+use App\Core\Agents\Tools\FirstParty\{AgentListTool, CampaignCreateTool, DelegateAgentTool, LeadActivityTool, LeadBulkUpsertTool, LeadSearchTool, LeadUpsertTool, MemoryForgetTool, MemoryRememberTool, MemorySearchTool};
 use App\Core\Connectors\ConnectorManager;
 use App\Core\Mcp\McpManager;
 use App\Core\Models\ToolSchemaNormalizer;
@@ -18,7 +18,18 @@ final class ToolRegistry
 
     public function __construct(private readonly ConnectorManager $connectors, private readonly McpManager $mcp)
     {
-        foreach ([new AgentListTool, new DelegateAgentTool, new LeadSearchTool, new LeadUpsertTool, new LeadActivityTool, new MemorySearchTool, new MemoryRememberTool, new MemoryForgetTool] as $tool) {
+        foreach ([
+            new AgentListTool,
+            new DelegateAgentTool,
+            new LeadSearchTool,
+            new LeadUpsertTool,
+            new LeadBulkUpsertTool,
+            new LeadActivityTool,
+            new CampaignCreateTool,
+            new MemorySearchTool,
+            new MemoryRememberTool,
+            new MemoryForgetTool,
+        ] as $tool) {
             $this->local[$tool->name()] = $tool;
         }
     }

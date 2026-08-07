@@ -336,11 +336,19 @@
         if (trigger && shell.contains(trigger) && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDrawer(); }
     });
 
-    // app.js replaces only the transcript HTML while polling. Repaint the durable
-    // projection immediately when those mounts are recreated so approvals/activity
-    // never disappear between refreshes or transcript updates.
+    // app.js replaces the transcript while polling. Ignore child-list mutations
+    // produced by the runtime mounts themselves so repainting cannot recursively
+    // trigger another repaint and freeze the page.
     if (chatScroll && typeof MutationObserver !== 'undefined') {
-        new MutationObserver(() => renderProjection()).observe(chatScroll, {childList:true, subtree:true});
+        const observer = new MutationObserver((mutations) => {
+            const transcriptChanged = mutations.some((mutation) => {
+                const target = mutation.target;
+                if (!(target instanceof Element)) return false;
+                return !target.closest('[data-runtime-approval-stack], [data-chat-inline-activity]');
+            });
+            if (transcriptChanged) renderProjection();
+        });
+        observer.observe(chatScroll, {childList:true, subtree:true});
     }
 
     fetchActivity();

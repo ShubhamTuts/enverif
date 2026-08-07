@@ -12,7 +12,7 @@ final class RuntimeFeedPresentationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_runtime_feed_exposes_safe_agent_activity_metadata_and_scoped_counts(): void
+    public function test_runtime_feed_exposes_safe_agent_activity_metadata_and_descendant_approval_counts(): void
     {
         $workspace = Workspace::create(['name' => 'Feed', 'slug' => 'feed', 'timezone' => 'UTC', 'locale' => 'en']);
         $user = User::create(['name' => 'Owner', 'email' => 'feed-owner@example.test', 'password' => Hash::make('password')]);
@@ -29,6 +29,16 @@ final class RuntimeFeedPresentationTest extends TestCase
             'max_runtime_seconds' => 300,
             'max_cost_usd' => 1,
         ]);
+        $childAgent = Agent::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'Outreach Agent',
+            'slug' => 'outreach-agent',
+            'instructions' => 'Handle outreach.',
+            'status' => 'active',
+            'max_steps' => 10,
+            'max_runtime_seconds' => 300,
+            'max_cost_usd' => 1,
+        ]);
         $thread = ChatThread::create([
             'workspace_id' => $workspace->id,
             'user_id' => $user->id,
@@ -40,10 +50,19 @@ final class RuntimeFeedPresentationTest extends TestCase
         $run = AgentRun::create([
             'workspace_id' => $workspace->id,
             'agent_id' => $agent->id,
-            'status' => 'awaiting_approval',
+            'status' => 'waiting_child',
             'input' => 'Find prospects',
             'started_at' => now(),
             'context' => ['agent_snapshot' => ['name' => $agent->name]],
+        ]);
+        $childRun = AgentRun::create([
+            'workspace_id' => $workspace->id,
+            'agent_id' => $childAgent->id,
+            'parent_run_id' => $run->id,
+            'status' => 'awaiting_approval',
+            'input' => 'Prepare outreach',
+            'started_at' => now(),
+            'context' => ['agent_snapshot' => ['name' => $childAgent->name]],
         ]);
         ChatMessage::create([
             'thread_id' => $thread->id,
@@ -54,7 +73,7 @@ final class RuntimeFeedPresentationTest extends TestCase
             'run_id' => $run->id,
         ]);
         Approval::create([
-            'run_id' => $run->id,
+            'run_id' => $childRun->id,
             'action' => 'connector.1.send',
             'risk_level' => 'external_write',
             'summary' => 'Send outreach',
@@ -73,6 +92,7 @@ final class RuntimeFeedPresentationTest extends TestCase
             ->assertJsonPath('threads.0.agent_name', 'Research Agent')
             ->assertJsonPath('threads.0.agent_avatar_url', route('agents.avatar', $agent))
             ->assertJsonPath('threads.0.activity_url', route('chat.activity', $thread))
+            ->assertJsonPath('threads.0.approval_count', 1)
             ->assertJsonPath('summary.active_count', 1)
             ->assertJsonPath('summary.approval_count', 1);
 

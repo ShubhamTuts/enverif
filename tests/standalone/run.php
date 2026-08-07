@@ -444,7 +444,7 @@ $tests['first party plugin manifests expose Codefreex identity and icon metadata
 $tests['release source reports semantic version from VERSION file'] = function (): void {
     $version = trim((string) file_get_contents(dirname(__DIR__, 2).'/VERSION'));
     assert(preg_match('/^\d+\.\d+\.\d+$/', $version) === 1);
-    assert($version === '1.3.9');
+    assert($version === '1.4.0');
 };
 
 

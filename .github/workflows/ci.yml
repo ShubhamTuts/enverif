@@ -68,7 +68,20 @@ jobs:
       - name: Migrate schema
         run: php artisan migrate:fresh --force
       - name: Laravel tests
-        run: php artisan test
+        shell: bash
+        run: |
+          set +e
+          php artisan test 2>&1 | tee /tmp/enverif-tests.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            {
+              echo '### Laravel test failure'
+              echo '```text'
+              tail -n 160 /tmp/enverif-tests.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
       - name: Route boot check
         run: php artisan route:list --except-vendor
 
@@ -107,8 +120,7 @@ jobs:
           extensions: curl, intl, mbstring, openssl, pdo_mysql, zip, :redis
           coverage: none
       - name: Assert Redis extension is absent
-        run: |
-          php -r 'exit(extension_loaded("redis") ? 1 : 0);'
+        run: php -r 'exit(extension_loaded("redis") ? 1 : 0);'
       - name: Install PHP dependencies without Redis
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Bootstrap database runtime
@@ -116,7 +128,20 @@ jobs:
       - name: Migrate schema
         run: php artisan migrate:fresh --force
       - name: Laravel tests
-        run: php artisan test
+        shell: bash
+        run: |
+          set +e
+          php artisan test 2>&1 | tee /tmp/enverif-tests.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            {
+              echo '### Shared-hosting Laravel test failure'
+              echo '```text'
+              tail -n 160 /tmp/enverif-tests.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
       - name: Standalone runtime tests
         run: php -d zend.assertions=1 -d assert.exception=1 tests/standalone/run.php
       - name: Route boot check
@@ -155,7 +180,20 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Exercise browser installer and authenticated core screens
-        run: ./scripts/ci-installer-smoke.sh
+        shell: bash
+        run: |
+          set +e
+          ./scripts/ci-installer-smoke.sh 2>&1 | tee /tmp/enverif-installer.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            {
+              echo '### Installer smoke failure'
+              echo '```text'
+              tail -n 160 /tmp/enverif-installer.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
 
   frontend-and-pages:
     name: Frontend · docs · GitHub Pages
@@ -167,7 +205,7 @@ jobs:
           php-version: '8.4'
           extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
           coverage: none
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Install frontend dependencies
@@ -177,7 +215,20 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: php scripts/build-site.php
-      - run: php scripts/check-site.php
-      - name: Validate workflow YAML
+      - name: Check static site links
+        shell: bash
         run: |
-          ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f, aliases: true); puts "OK #{f}" }'
+          set +e
+          php scripts/check-site.php 2>&1 | tee /tmp/enverif-site-check.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            {
+              echo '### Static site link failure'
+              echo '```text'
+              cat /tmp/enverif-site-check.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
+      - name: Validate workflow YAML
+        run: ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f, aliases: true); puts "OK #{f}" }'

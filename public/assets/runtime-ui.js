@@ -1,5 +1,5 @@
 (() => {
-    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[char]));
     const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
     const terminal = (status) => ['completed', 'failed', 'cancelled'].includes(String(status || ''));
     const timeLabel = (value) => {
@@ -7,7 +7,6 @@
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     };
-
     const ensureToast = () => {
         let toast = document.querySelector('[data-runtime-toast]');
         if (toast) return toast;
@@ -15,7 +14,7 @@
         toast.className = 'runtime-toast';
         toast.dataset.runtimeToast = '1';
         toast.hidden = true;
-        toast.innerHTML = '<div><strong data-runtime-toast-title>Action required</strong><p data-runtime-toast-copy></p></div><button class="icon-btn" type="button" data-runtime-toast-close aria-label="Close">×</button>';
+        toast.innerHTML = '<div><strong data-runtime-toast-title>Update</strong><p data-runtime-toast-copy></p></div><button class="icon-btn" type="button" data-runtime-toast-close aria-label="Close">×</button>';
         document.body.appendChild(toast);
         toast.querySelector('[data-runtime-toast-close]')?.addEventListener('click', () => { toast.hidden = true; });
         return toast;
@@ -27,7 +26,6 @@
         toast.hidden = false;
         window.setTimeout(() => { toast.hidden = true; }, 7000);
     };
-
     let pendingDestructiveForm = null;
     const ensureConfirmDialog = () => {
         let dialog = document.querySelector('[data-destructive-dialog]');
@@ -50,14 +48,10 @@
     };
     const dependencySummary = (data) => {
         const lines = [];
-        const agents = data?.agents?.length ?? 0;
-        const workflows = data?.workflows?.length ?? 0;
-        const schedules = data?.schedules?.length ?? 0;
-        const connections = data?.connections?.length ?? 0;
-        if (connections) lines.push(`${connections} configured connection${connections === 1 ? '' : 's'}`);
-        if (agents) lines.push(`${agents} agent${agents === 1 ? '' : 's'}`);
-        if (workflows) lines.push(`${workflows} workflow${workflows === 1 ? '' : 's'}`);
-        if (schedules) lines.push(`${schedules} schedule${schedules === 1 ? '' : 's'}`);
+        for (const [key, label] of [['connections','configured connection'],['agents','agent'],['workflows','workflow'],['schedules','schedule']]) {
+            const count = data?.[key]?.length ?? 0;
+            if (count) lines.push(`${count} ${label}${count === 1 ? '' : 's'}`);
+        }
         return lines;
     };
     document.addEventListener('submit', async (event) => {
@@ -92,9 +86,7 @@
                     dependencyBox.insertAdjacentHTML('beforeend', '<div><strong>Removal is blocked until these dependencies are detached.</strong></div>');
                     confirm.disabled = true;
                     confirm.textContent = 'Blocked';
-                } else {
-                    confirm.disabled = false;
-                }
+                } else confirm.disabled = false;
             } catch (error) {
                 dependencyBox.textContent = error instanceof Error ? error.message : 'Unable to verify dependencies.';
                 confirm.disabled = true;
@@ -106,7 +98,6 @@
             form.requestSubmit();
         }
     }, true);
-
     const actionCenter = document.querySelector('[data-action-center-url]');
     if (actionCenter) {
         const url = actionCenter.dataset.actionCenterUrl || actionCenter.getAttribute('href');
@@ -148,14 +139,70 @@
             }
         });
     }
-
+    const runtimeFeedUrl = document.body.dataset.runtimeFeedUrl || '';
+    if (runtimeFeedUrl) {
+        const stateKey = `enverif-runtime:${document.body.dataset.runtimeWorkspace || runtimeFeedUrl}`;
+        let previous = null;
+        let feedTimer = null;
+        try { previous = JSON.parse(sessionStorage.getItem(stateKey) || 'null'); } catch (_) { previous = null; }
+        const statusLabel = (status) => {
+            if (status === 'completed') return 'Completed';
+            if (status === 'failed') return 'Failed';
+            if (status === 'cancelled') return 'Cancelled';
+            if (status === 'awaiting_approval') return 'Approval needed';
+            return 'Working';
+        };
+        const renderFeed = (items) => {
+            for (const item of items) {
+                const link = [...document.querySelectorAll('[data-chat-history-thread]')].find((node) => String(node.dataset.chatHistoryThread) === String(item.thread_id));
+                if (!link) continue;
+                link.dataset.runtimeStatus = item.status;
+                let status = link.querySelector('[data-chat-history-status]');
+                if (!status) {
+                    status = document.createElement('small');
+                    status.dataset.chatHistoryStatus = '1';
+                    status.className = 'chat-history-runtime-status';
+                    link.appendChild(status);
+                }
+                status.textContent = statusLabel(item.status);
+            }
+        };
+        const pollFeed = async () => {
+            try {
+                const response = await fetch(runtimeFeedUrl, {headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin', cache:'no-store'});
+                if (response.ok) {
+                    const data = await response.json();
+                    const items = Array.isArray(data.threads) ? data.threads : [];
+                    renderFeed(items);
+                    const current = Object.fromEntries(items.map((item) => [String(item.thread_id), {run_id:item.run_id,status:item.status,title:item.title,agent_name:item.agent_name}]));
+                    if (previous) {
+                        for (const [threadId, item] of Object.entries(current)) {
+                            const before = previous[threadId];
+                            if (!before || String(before.run_id) !== String(item.run_id) || before.status === item.status) continue;
+                            if (item.status === 'completed') showToast(`${item.agent_name || 'Agent'} finished`, item.title || 'Your task is ready.');
+                            if (item.status === 'failed') showToast(`${item.agent_name || 'Agent'} needs attention`, `${item.title || 'Task'} failed. Open the chat to review it.`);
+                        }
+                    }
+                    previous = current;
+                    sessionStorage.setItem(stateKey, JSON.stringify(current));
+                }
+            } catch (_) {}
+            feedTimer = window.setTimeout(pollFeed, document.hidden ? 15000 : 4000);
+        };
+        feedTimer = window.setTimeout(pollFeed, 900);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                if (feedTimer) window.clearTimeout(feedTimer);
+                pollFeed();
+            }
+        });
+    }
     const shell = document.querySelector('[data-chat-shell]');
     if (!shell) return;
     const chatScroll = shell.querySelector('[data-chat-scroll]');
     let projection = null;
     let pollTimer = null;
     let lastApprovalCount = -1;
-
     const activityUrl = () => {
         const direct = shell.dataset.activityUrl || '';
         if (direct) return direct;
@@ -163,13 +210,8 @@
         if (!status) return '';
         return status.replace(/\/status(?:\?.*)?$/, '/activity');
     };
-
-    const approvalStack = document.createElement('div');
-    approvalStack.className = 'runtime-approval-stack';
-    approvalStack.dataset.runtimeApprovalStack = '1';
-    approvalStack.hidden = true;
-    if (chatScroll) chatScroll.appendChild(approvalStack);
-
+    const approvalStack = () => shell.querySelector('[data-runtime-approval-stack]');
+    const inlineActivity = () => shell.querySelector('[data-chat-inline-activity]');
     const backdrop = document.createElement('div');
     backdrop.className = 'runtime-drawer-backdrop';
     const drawer = document.createElement('aside');
@@ -182,7 +224,6 @@
     backdrop.addEventListener('click', closeDrawer);
     drawer.querySelector('[data-runtime-drawer-close]')?.addEventListener('click', closeDrawer);
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeDrawer(); });
-
     const depthMap = (runs) => {
         const map = new Map(runs.map((run) => [String(run.id), run]));
         const depth = new Map();
@@ -212,14 +253,30 @@
         }).join('');
         body.innerHTML = `${eventsHtml ? `<div class="runtime-events">${eventsHtml}</div>` : ''}${runsHtml}`;
     };
+    const renderInline = (data) => {
+        const mount = inlineActivity();
+        if (!mount) return;
+        const events = Array.isArray(data?.events) ? data.events.slice(-6) : [];
+        const activeRuns = Array.isArray(data?.runs) ? data.runs.filter((run) => !terminal(run.status)) : [];
+        if (!events.length && !activeRuns.length) { mount.hidden = true; mount.innerHTML = ''; return; }
+        const rows = events.map((event) => `<div class="chat-inline-runtime-row" data-status="${escapeHtml(event.status)}"><span>${event.status === 'completed' ? '✓' : (event.status === 'failed' ? '!' : '·')}</span><span>${escapeHtml(event.label)}</span><time>${escapeHtml(timeLabel(event.at))}</time></div>`).join('');
+        mount.innerHTML = `<button type="button" class="chat-inline-runtime-head" data-runtime-open-drawer><strong>Live activity</strong><span>${escapeHtml(String(data?.runs?.length || 0))} agent run${(data?.runs?.length || 0) === 1 ? '' : 's'} · ${(data?.events?.length || 0)} events</span></button>${rows}`;
+        mount.hidden = false;
+    };
     const renderApprovals = (data) => {
+        const mount = approvalStack();
+        if (!mount) return;
         const approvals = Array.isArray(data?.pending_approvals) ? data.pending_approvals : [];
-        approvalStack.innerHTML = approvals.map((approval) => `<article class="runtime-approval" data-approval-id="${escapeHtml(approval.id)}"><div class="runtime-approval-head"><strong>Approval required</strong><span class="runtime-approval-risk">${escapeHtml(approval.risk_level || 'external write')}</span></div><p>${escapeHtml(approval.summary || approval.action || 'External action')}</p><div class="runtime-approval-actions"><button class="btn btn-sm btn-primary" type="button" data-runtime-approval="approved" data-url="${escapeHtml(approval.decide_url)}">Approve</button><button class="btn btn-sm btn-danger" type="button" data-runtime-approval="denied" data-url="${escapeHtml(approval.decide_url)}">Deny</button><button class="btn btn-sm" type="button" data-runtime-open-drawer>Review activity</button></div></article>`).join('');
-        approvalStack.hidden = approvals.length === 0;
+        mount.innerHTML = approvals.map((approval) => `<article class="runtime-approval" data-approval-id="${escapeHtml(approval.id)}"><div class="runtime-approval-head"><strong>Approval required</strong><span class="runtime-approval-risk">${escapeHtml(approval.risk_level || 'external write')}</span></div><p>${escapeHtml(approval.summary || approval.action || 'External action')}</p><div class="runtime-approval-actions"><button class="btn btn-sm btn-primary" type="button" data-runtime-approval="approved" data-url="${escapeHtml(approval.decide_url)}">Approve</button><button class="btn btn-sm btn-danger" type="button" data-runtime-approval="denied" data-url="${escapeHtml(approval.decide_url)}">Deny</button><button class="btn btn-sm" type="button" data-runtime-open-drawer>Review activity</button></div></article>`).join('');
+        mount.hidden = approvals.length === 0;
         if (lastApprovalCount >= 0 && approvals.length > lastApprovalCount) showToast('Approval required', approvals[0]?.summary || 'An agent is waiting for your decision.');
         lastApprovalCount = approvals.length;
     };
-    const decorateTriggers = () => {
+    const renderProjection = () => {
+        if (!projection) return;
+        renderApprovals(projection);
+        renderInline(projection);
+        renderDrawer(projection);
         shell.querySelectorAll('[data-chat-thread-run], [data-chat-thinking]').forEach((element) => {
             element.setAttribute('role','button');
             element.setAttribute('tabindex','0');
@@ -228,18 +285,16 @@
     };
     const fetchActivity = async () => {
         const url = activityUrl();
-        if (!url) { pollTimer = window.setTimeout(fetchActivity, 900); return; }
+        if (!url) { pollTimer = window.setTimeout(fetchActivity, 1000); return; }
         try {
             const response = await fetch(url, {headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin', cache:'no-store'});
             if (response.ok) {
                 projection = await response.json();
-                renderApprovals(projection);
-                renderDrawer(projection);
-                decorateTriggers();
+                renderProjection();
             }
         } catch (_) {}
         const active = (projection?.runs || []).some((run) => !terminal(run.status));
-        pollTimer = window.setTimeout(fetchActivity, active ? 1100 : 6000);
+        pollTimer = window.setTimeout(fetchActivity, active ? 900 : 5000);
     };
     const decide = async (button) => {
         const url = button.dataset.url;
@@ -267,7 +322,9 @@
         const trigger = event.target.closest?.('[data-chat-thread-run], [data-chat-thinking]');
         if (trigger && shell.contains(trigger) && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDrawer(); }
     });
-    decorateTriggers();
+    if (chatScroll && typeof MutationObserver !== 'undefined') {
+        new MutationObserver(() => renderProjection()).observe(chatScroll, {childList:true, subtree:true});
+    }
     fetchActivity();
     window.addEventListener('beforeunload', () => { if (pollTimer) window.clearTimeout(pollTimer); });
 })();

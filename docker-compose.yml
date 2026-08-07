@@ -19,7 +19,7 @@ services:
   worker:
     build: .
     restart: unless-stopped
-    command: ["sh", "-c", "until [ -f storage/app/installed ]; do sleep 2; done; exec php artisan queue:work redis --sleep=1 --tries=3 --timeout=900"]
+    command: ["sh", "-c", "until [ -f storage/app/installed ]; do sleep 2; done; exec php artisan queue:work redis --queue=agents,default --sleep=1 --tries=3 --timeout=900"]
     volumes:
       - ./.env:/var/www/html/.env
       - ./storage:/var/www/html/storage

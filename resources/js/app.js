@@ -1,4 +1,4 @@
-﻿const root=document.documentElement;
+const root=document.documentElement;
 const preferred=localStorage.getItem('enverif-theme')||root.dataset.userTheme||'system';
 function resolvedTheme(theme){return theme==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme}
 function setTheme(theme){localStorage.setItem('enverif-theme',theme);root.dataset.theme=resolvedTheme(theme);root.dataset.userTheme=theme;document.querySelectorAll('[data-theme-label]').forEach(x=>x.textContent=theme)}
@@ -1115,6 +1115,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         if (busy) return;
 
         showError('');
+        const payload = new FormData(form);
         setBusy(true);
         // Preserve composer chrome height while the request is in flight.
         form.style.minHeight = `${Math.max(form.offsetHeight, 88)}px`;
@@ -1122,7 +1123,7 @@ document.querySelectorAll('[data-agent-model-catalog]').forEach((form)=>{
         try {
             const response = await fetch(form.action, {
                 method: 'POST',
-                body: new FormData(form),
+                body: payload,
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',

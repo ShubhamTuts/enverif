@@ -425,30 +425,44 @@ final class ChatController extends Controller
     }
 
     /** @param array<string,mixed> $data @return array{0:?ModelConnection,1:?string} */
-    private function resolveModelSelection(array $data, ?ChatThread $thread, Agent $agent): array
-    {
-        $connectionId = (int) ($data['model_connection_id'] ?? $thread?->default_model_connection_id ?: $agent->model_connection_id ?: 0);
-        $connection = $connectionId > 0 ? ModelConnection::whereKey($connectionId)->where('enabled', true)->first() : null;
-        if ($connectionId > 0 && !$connection) throw ValidationException::withMessages(['model_connection_id' => 'The selected model connection is unavailable in this workspace.']);
+private function resolveModelSelection(array $data, ?ChatThread $thread, Agent $agent): array
+{
+    $threadAgentId = (int) ($thread?->default_agent_id ?: $thread?->agent_id ?: 0);
+    $agentChanged = $thread !== null && $threadAgentId > 0 && $threadAgentId !== (int) $agent->id;
+    $connectionSubmitted = array_key_exists('model_connection_id', $data);
+    $submittedConnectionId = (int) ($data['model_connection_id'] ?? 0);
 
-        // Fall back to any enabled connection in the workspace
-        if (!$connection) {
-            $connection = ModelConnection::where('workspace_id', $agent->workspace_id)->where('enabled', true)->first();
-        }
-
-        $submitted = array_key_exists('model', $data);
-        $model = $submitted ? trim((string) ($data['model'] ?? '')) : trim((string) ($thread?->default_model ?: ''));
-        if ($model === '__custom__') {
-            $model = trim((string) ($data['custom_model'] ?? ''));
-            if ($model === '') throw ValidationException::withMessages(['custom_model' => 'Enter the custom model ID.']);
-        }
-        if ($model === '' && $connection) $model = $connection->default_model ?: ($this->providers->get($connection->provider)->models()[0] ?? null);
-        if ($model !== '' && $connection && $submitted && !in_array($model, $this->providers->get($connection->provider)->models(), true) && trim((string) ($data['custom_model'] ?? '')) === '') {
-            // Custom model ID entered inline — allow it through rather than blocking
-            $model = $model;
-        }
-        return [$connection, $model !== '' ? $model : null];
+    if ($connectionSubmitted && $submittedConnectionId > 0) {
+        $connectionId = $submittedConnectionId;
+    } elseif ($agentChanged || !$thread) {
+        $connectionId = (int) ($agent->model_connection_id ?: 0);
+    } else {
+        $connectionId = (int) ($thread?->default_model_connection_id ?: $agent->model_connection_id ?: 0);
     }
+
+    $connection = $connectionId > 0 ? ModelConnection::whereKey($connectionId)->where('enabled', true)->first() : null;
+    if ($connectionId > 0 && !$connection) throw ValidationException::withMessages(['model_connection_id' => 'The selected model connection is unavailable in this workspace.']);
+    if (!$connection) {
+        $connection = ModelConnection::where('workspace_id', $agent->workspace_id)->where('enabled', true)->first();
+    }
+
+    $modelSubmitted = array_key_exists('model', $data);
+    if ($modelSubmitted) {
+        $model = trim((string) ($data['model'] ?? ''));
+    } elseif ($agentChanged || !$thread) {
+        $model = trim((string) ($agent->model ?: ''));
+    } else {
+        $model = trim((string) ($thread?->default_model ?: $agent->model ?: ''));
+    }
+    if ($model === '__custom__') {
+        $model = trim((string) ($data['custom_model'] ?? ''));
+        if ($model === '') throw ValidationException::withMessages(['custom_model' => 'Enter the custom model ID.']);
+    }
+    if ($model === '' && $connection) {
+        $model = $connection->default_model ?: ($this->providers->get($connection->provider)->models()[0] ?? null);
+    }
+    return [$connection, $model !== '' ? $model : null];
+}
 
     /** @param list<int> $connectorIds @param list<int> $skillIds @param list<int> $workflowIds @param list<int> $leadIds @param list<int> $campaignIds @return list<array<string,mixed>> */
     private function mentionSnapshots(array $connectorIds, array $skillIds, array $workflowIds, array $leadIds, array $campaignIds, Agent $agent): array

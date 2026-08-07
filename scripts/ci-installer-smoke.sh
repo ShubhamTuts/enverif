@@ -118,7 +118,7 @@ curl -sS -D "$WORK/install.headers" -o "$WORK/install.response" \
   --data-urlencode "workspace_name=Installer Workspace" \
   "$BASE_URL/install" || fail "Installer POST request failed." "$WORK/install.response"
 
-if ! grep -Eiq '^location: .*\/login\r?$' "$WORK/install.headers"; then
+if ! tr -d '\r' < "$WORK/install.headers" | grep -Eiq '^location: .*/login$'; then
   LOCATION="$(sed -n 's/^[Ll]ocation:[[:space:]]*//p' "$WORK/install.headers" | tr -d '\r' | tail -n1)"
   FAILURE_HTML="$WORK/install.failure.html"
   curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$BASE_URL/install" -o "$FAILURE_HTML" || true
@@ -146,7 +146,9 @@ curl -sS -D "$WORK/login.headers" -o "$WORK/login.response" \
   --data-urlencode "password=$ADMIN_PASSWORD" \
   "$BASE_URL/login" || fail "Login POST request failed." "$WORK/login.response"
 
-if ! grep -Eiq '^location: ' "$WORK/login.headers" || grep -Eiq '^location: .*/login\r?$' "$WORK/login.headers"; then
+LOGIN_HEADERS="$WORK/login.headers.normalized"
+tr -d '\r' < "$WORK/login.headers" > "$LOGIN_HEADERS"
+if ! grep -Eiq '^location: ' "$LOGIN_HEADERS" || grep -Eiq '^location: .*/login$' "$LOGIN_HEADERS"; then
   cat "$WORK/login.headers" >&2 || true
   fail "Login did not redirect to the chat root." "$WORK/login.response"
 fi

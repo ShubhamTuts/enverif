@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\{ActionCenterController,AgentController,AgentMemoryController,ApprovalController,AuditController,AuthController,CampaignController,ChatActivityController,ChatAttachmentController,ChatController,ChatStatusController,ConnectorController,ConnectorOAuthController,DashboardController,InstallController,LeadController,McpServerController,ModelConnectionController,PluginAssetController,PluginController,RunController,RuntimeFeedController,ScheduleController,SettingsController,SkillController,SystemCronController,WorkflowController,WorkflowRunController,WorkflowWebhookController};
+use App\Http\Controllers\{ActionCenterController,AgentController,AgentMemoryController,ApprovalController,AuditController,AuthController,CampaignController,ChatActivityController,ChatAttachmentController,ChatController,ChatStatusController,ChatStopController,ConnectorController,ConnectorOAuthController,DashboardController,InstallController,LeadController,McpServerController,ModelConnectionController,PluginAssetController,PluginController,RunController,RuntimeFeedController,ScheduleController,SettingsController,SkillController,SystemCronController,WorkflowController,WorkflowRunController,WorkflowWebhookController};
 use Illuminate\Support\Facades\Route;
 
 Route::get('/install', [InstallController::class, 'index'])->name('install.index');
@@ -22,7 +22,7 @@ Route::middleware('installed')->group(function () {
         Route::get('/chats/{thread}/status', ChatStatusController::class)->name('chat.status');
         Route::get('/chats/{thread}/activity', ChatActivityController::class)->name('chat.activity');
         Route::get('/runtime/feed', RuntimeFeedController::class)->name('runtime.feed');
-        Route::post('/chats/{thread}/stop', [ChatController::class, 'stop'])->name('chat.stop');
+        Route::post('/chats/{thread}/stop', ChatStopController::class)->name('chat.stop');
         Route::put('/chats/{thread}/rename', [ChatController::class, 'rename'])->name('chat.rename');
         Route::post('/chats/{thread}/archive', [ChatController::class, 'archive'])->name('chat.archive');
         Route::get('/chat-attachments/{attachment}', [ChatAttachmentController::class, 'show'])->name('chat.attachments.show');

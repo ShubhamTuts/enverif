@@ -6,25 +6,15 @@ use Tests\TestCase;
 
 final class ChatTranscriptPollingRegressionTest extends TestCase
 {
-    public function test_chat_status_polling_skips_unchanged_transcript_html(): void
+    public function test_busy_chat_status_does_not_rebuild_the_full_transcript_on_every_poll(): void
     {
-        $app = file_get_contents(resource_path('js/app.js'));
+        $controller = file_get_contents(app_path('Http/Controllers/ChatStatusController.php'));
 
-        self::assertIsString($app);
+        self::assertIsString($controller);
         self::assertStringContainsString(
-            'let transcriptVersion =',
-            $app,
-            'Chat polling must remember which transcript version is already rendered.'
-        );
-        self::assertStringContainsString(
-            'data?.transcript_version',
-            $app,
-            'Chat polling must use the durable transcript version returned by ChatStatusController.'
-        );
-        self::assertStringContainsString(
-            'nextTranscriptVersion !== transcriptVersion',
-            $app,
-            'Unchanged status polls must not replace the entire transcript DOM.'
+            "'transcript_html' => $busy ? null : view('chat._transcript'",
+            $controller,
+            'While a run is active, status polling must update lightweight run state without rebuilding the entire transcript DOM payload.'
         );
     }
 }

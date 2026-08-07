@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureInstalled;
 use App\Http\Middleware\PrepareInstallerRuntime;
+use App\Http\Middleware\RequireWorkspaceCapability;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\UseWorkspace;
 use Illuminate\Foundation\Application;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'installed' => EnsureInstalled::class,
             'workspace' => UseWorkspace::class,
+            'workspace.capability' => RequireWorkspaceCapability::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

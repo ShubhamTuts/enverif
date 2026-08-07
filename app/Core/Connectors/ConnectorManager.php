@@ -39,14 +39,18 @@ final class ConnectorManager
     public function catalog():array
     {
         $out=[];
+        $externalRoot=realpath(base_path('plugins/external'));
         foreach($this->drivers as $id=>$driver){
             $meta=$this->plugins->metadata($id);
             $icon=(string)($meta['icon']??'');
             if($icon==='')$icon=PluginPresentation::iconFor($id);
             elseif(!preg_match('#^https://#i',$icon)){ $release=trim((string)@file_get_contents(base_path('VERSION')))?:'dev'; $icon=url('/plugin-assets/'.rawurlencode((string)($meta['slug']??$id)).'/'.rawurlencode(basename($icon))).'?v='.rawurlencode($release); }
             $developer=(string)($meta['developer']??(method_exists($driver,'developer')?$driver->developer():'Third-party'));
+            $directory=realpath((string)($meta['_directory']??''));
+            $removable=$externalRoot!==false&&$directory!==false&&str_starts_with($directory,$externalRoot.DIRECTORY_SEPARATOR);
             $out[$id]=[
                 'id'=>$id,
+                'slug'=>(string)($meta['slug']??$id),
                 'label'=>$driver->label(),
                 'developer'=>$developer,
                 'developer_url'=>$meta['developer_url']??PluginPresentation::developerUrl($developer),
@@ -56,6 +60,7 @@ final class ConnectorManager
                 'icon'=>$icon,
                 'version'=>$meta['version']??null,
                 'license'=>$meta['license']??null,
+                'removable'=>$removable,
                 'schema'=>$driver->configurationSchema(),
                 'actions'=>array_map(fn($a)=>[
                     'name'=>$a->name,

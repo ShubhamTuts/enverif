@@ -23,7 +23,7 @@ final class ChatStatusController extends Controller
 
         if ($run && $terminal) $materializer->materialize($run);
 
-        $terminalMessagePresent = ! $run || ! $terminal || $materializer->isMaterialized($run);
+        $terminalMessagePresent = (bool) ($run && $terminal && $materializer->isMaterialized($run));
         $busy = $run ? (! $terminal || ! $terminalMessagePresent) : false;
         $latestStep = $run?->steps()->latest('sequence')->first();
         $agentName = (string) ($run?->agent?->name ?: data_get($run?->context, 'agent_snapshot.name', 'Agent'));

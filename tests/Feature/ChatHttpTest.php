@@ -138,6 +138,63 @@ final class ChatHttpTest extends TestCase
         self::assertSame('fast', data_get($run->context, 'effort'));
     }
 
+    public function test_switching_agent_without_explicit_model_uses_the_new_agents_model_defaults(): void
+    {
+        Queue::fake();
+
+        $claude = ModelConnection::withoutGlobalScopes()->create([
+            'workspace_id' => $this->workspace->id,
+            'provider' => 'anthropic',
+            'name' => 'Claude',
+            'credentials' => ['api_key' => 'claude-test-key'],
+            'default_model' => 'claude-sonnet-5',
+            'enabled' => true,
+        ]);
+        $research = Agent::withoutGlobalScopes()->create([
+            'workspace_id' => $this->workspace->id,
+            'name' => 'Research Agent',
+            'slug' => 'research-agent',
+            'instructions' => 'Research qualified prospects.',
+            'status' => 'active',
+            'model_connection_id' => $claude->id,
+            'model' => 'claude-sonnet-5',
+            'default_effort' => 'deep',
+            'max_steps' => 20,
+            'max_runtime_seconds' => 300,
+            'max_cost_usd' => 5,
+        ]);
+        $thread = ChatThread::withoutGlobalScopes()->create([
+            'workspace_id' => $this->workspace->id,
+            'user_id' => $this->user->id,
+            'agent_id' => $this->agent->id,
+            'default_agent_id' => $this->agent->id,
+            'default_model_connection_id' => $this->connection->id,
+            'default_model' => 'gpt-5',
+            'default_effort' => 'standard',
+            'title' => 'Existing chat',
+            'last_message_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->withSession(['workspace_id' => $this->workspace->id])
+            ->postJson('/chats/'.$thread->id, [
+                'prompt' => 'Use the research agent for this turn.',
+                'agent_id' => $research->id,
+                'persist_defaults' => true,
+            ]);
+
+        $response->assertStatus(202);
+        $run = AgentRun::withoutGlobalScopes()->findOrFail((string) $response->json('run_id'));
+        self::assertSame($research->id, (int) $run->agent_id);
+        self::assertSame($claude->id, (int) data_get($run->context, 'model_connection_id'));
+        self::assertSame('claude-sonnet-5', data_get($run->context, 'model'));
+
+        $thread->refresh();
+        self::assertSame($research->id, (int) $thread->default_agent_id);
+        self::assertSame($claude->id, (int) $thread->default_model_connection_id);
+        self::assertSame('claude-sonnet-5', $thread->default_model);
+    }
+
     public function test_chat_attachment_is_private_and_download_requires_the_owning_user(): void
     {
         Queue::fake();

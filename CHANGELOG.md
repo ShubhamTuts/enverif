@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0 — 2026-08-07
+
+- Consolidates the complete chat-agent sales-orchestration branch with the subsequent production-hardening work into one release line.
+- Strengthens Enverif as a persistent AI sales-team workspace across agents, skills, plugins, workflows, leads, campaigns, schedules, approvals, files and durable run history.
+- Hardens shared-hosting installation/runtime behavior, including optional Redis handling and end-to-end installer/login/core-screen verification.
+- Improves chat orchestration, model/provider diagnostics, connector and mail capability lifecycle, workflow safety/observability, security boundaries and release verification.
+- Normalizes application-only CI/release packaging so internal marketing/documentation website assets are not required by the Enverif application build.
+- Adds deterministic dependency lockfiles and stable source/shared-hosting release package naming for reproducible 1.4.0 artifacts.
+- Repositions the project README around open-source AI sales employees for agencies and businesses, with the live Enverif workspace hero and outcome-driven examples.
+
 All notable Enverif changes are documented here.
 
 ## 1.3.9 — 2026-08-06

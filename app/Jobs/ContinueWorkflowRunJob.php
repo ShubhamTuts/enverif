@@ -16,7 +16,9 @@ final class ContinueWorkflowRunJob implements ShouldQueue, ShouldBeUniqueUntilPr
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 4;
+    /** Lock contention must not consume a durable continuation. */
+    public int $tries = 0;
+    public int $maxExceptions = 3;
     public int $timeout = 300;
     public int $uniqueFor = 900;
 
@@ -33,12 +35,16 @@ final class ContinueWorkflowRunJob implements ShouldQueue, ShouldBeUniqueUntilPr
     public function handle(WorkflowEngine $engine, RunExecutionLock $locks, WorkspaceContext $workspace): void
     {
         $run = WorkflowRun::withoutGlobalScopes()->find($this->runId);
-        if (!$run) {
+        if (!$run || in_array((string) $run->status, ['completed', 'failed', 'cancelled'], true)) {
             return;
         }
 
-        $workspace->run((int) $run->workspace_id, function () use ($engine, $locks): void {
-            $locks->workflow($this->runId, fn () => $engine->advance($this->runId));
+        $acquired = $workspace->run((int) $run->workspace_id, function () use ($engine, $locks): bool {
+            return $locks->workflow($this->runId, fn () => $engine->advance($this->runId));
         });
+
+        if (! $acquired) {
+            $this->release(2);
+        }
     }
 }

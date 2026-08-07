@@ -5,6 +5,10 @@
 <title>@yield('title','Enverif') · Enverif</title>
 @php
     $assetVersion = trim((string) @file_get_contents(base_path('VERSION'))) ?: 'dev';
+    $appAssetMtime = @filemtime(public_path('assets/app.js'));
+    $runtimeAssetMtime = @filemtime(public_path('assets/runtime-ui.js'));
+    $appAssetVersion = $appAssetMtime ? $assetVersion.'-'.$appAssetMtime : $assetVersion;
+    $runtimeAssetVersion = $runtimeAssetMtime ? $assetVersion.'-'.$runtimeAssetMtime : $assetVersion;
 @endphp
 <link rel="icon" href="{{ asset('assets/enverif-mark.svg') }}?v={{ rawurlencode($assetVersion) }}">
 <link rel="stylesheet" href="{{ asset('assets/app.css') }}?v={{ rawurlencode($assetVersion) }}">
@@ -66,4 +70,4 @@ $nav=[
 <div class="content @yield('content-class')">@if(session('status'))<div class="notice good">✓ <span>{{ session('status') }}</span></div>@endif @if(session('error'))<div class="notice bad">! <span>{{ session('error') }}</span></div>@endif @if($errors->any())<div class="notice bad"><div><strong>{{ __('ui.fix_errors') }}</strong><ul class="error-list">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>@endif @yield('content')</div>
 </main></div>
 <div class="command-dialog"><div class="command-box"><input class="field command-input" data-command-input placeholder="{{ __('ui.jump_anything') }}"><div class="command-results">@foreach([['chat.index',__('ui.new_chat')],['agents.index',__('ui.agents')],['schedules.index',__('ui.schedules')],['leads.index',__('ui.leads')],['campaigns.index',__('ui.campaigns')],['skills.index',__('ui.skills')],['connectors.index',__('ui.plugins')],['workflows.index',__('ui.workflows')],['settings.edit',__('ui.settings')]] as [$route,$label])@continue(!$canAdmin && !in_array($route,['chat.index','leads.index'],true))<a href="{{ route($route) }}" data-command-item><span>{{ $label }}</span><span class="muted">→</span></a>@endforeach</div></div></div>
-<script src="{{ asset('assets/app.js') }}?v={{ rawurlencode($assetVersion) }}" defer></script><script src="{{ asset('assets/runtime-ui.js') }}?v={{ rawurlencode($assetVersion) }}" defer></script>@stack('scripts')</body></html>
+<script src="{{ asset('assets/app.js') }}?v={{ rawurlencode($appAssetVersion) }}" defer></script><script src="{{ asset('assets/runtime-ui.js') }}?v={{ rawurlencode($runtimeAssetVersion) }}" defer></script>@stack('scripts')</body></html>

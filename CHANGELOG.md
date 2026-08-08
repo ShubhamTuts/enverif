@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.1 — 2026-08-08
+
+- Fixes shared-host Apache routing so authenticated Laravel `/skills/*` and `/plugins/*` application routes reach Enverif while private application directories remain blocked from direct access.
+- Moves the old inline Live activity presentation into a top-bar **Agent activity** control and right-side drawer, keeping chat transcripts clean.
+- Makes Agent activity theme-aware in dark/light mode and surfaces current/recent run state, sub-agent hierarchy, tools, connectors, approvals, timestamps and execution steps.
+- Uses each agent's uploaded avatar in activity projections when available, with the existing fallback when no avatar is set.
+- Adds regression coverage for shared-host routing, Agent activity UI/runtime projections, avatars, run trees and approval behavior.
+
 ## 1.4.0 — 2026-08-07
 
 - Consolidates the complete chat-agent sales-orchestration branch with the subsequent production-hardening work into one release line.

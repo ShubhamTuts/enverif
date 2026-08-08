@@ -32,7 +32,7 @@
 
 ---
 
-## Enverif 1.4.0
+## Enverif 1.4.1
 
 The current release line combines the agentic chat, sales-orchestration and production-hardening work into one self-hosted AI sales workspace. See the [changelog](CHANGELOG.md) for release-by-release details.
 

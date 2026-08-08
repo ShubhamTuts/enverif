@@ -13,7 +13,7 @@ final class ChatRunProjectionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_projection_includes_descendant_agents_steps_and_redacted_pending_approvals(): void
+    public function test_projection_includes_descendant_agents_steps_avatars_and_redacted_pending_approvals(): void
     {
         [$user, $workspace] = $this->workspaceOwner();
         app(WorkspaceContext::class)->set($workspace->id);
@@ -42,14 +42,19 @@ final class ChatRunProjectionTest extends TestCase
         ]);
 
         $projection = app(RunProjection::class)->forRun($parent->id);
+        $parentNode = collect($projection['runs'])->firstWhere('id', $parent->id);
+        $childNode = collect($projection['runs'])->firstWhere('id', $child->id);
 
         self::assertSame($parent->id, $projection['root_run_id']);
         self::assertSame(2, count($projection['runs']));
         self::assertSame(1, $projection['pending_approval_count']);
-        self::assertSame('Sara', collect($projection['runs'])->firstWhere('id', $child->id)['agent_name']);
+        self::assertSame('Sara', $childNode['agent_name']);
+        self::assertSame(route('agents.avatar', $parentAgent), $parentNode['agent_avatar_url']);
+        self::assertSame(route('agents.avatar', $childAgent), $childNode['agent_avatar_url']);
         self::assertSame('Connector · Reply', collect($projection['events'])->firstWhere('id', 'step:'.$step->id)['label']);
         self::assertSame('[redacted]', $projection['pending_approvals'][0]['payload']['api_key']);
         self::assertStringNotContainsString('should-never-leak', json_encode($projection, JSON_THROW_ON_ERROR));
+        self::assertStringNotContainsString('avatar_path', json_encode($projection, JSON_THROW_ON_ERROR));
         self::assertSame($user->id, $user->id); // keeps owner fixture explicit for request-oriented follow-up tests.
     }
 

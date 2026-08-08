@@ -162,7 +162,7 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
         self::assertSame(2, count((array) $activity->json('runs')));
     }
 
-    public function test_chat_page_has_persistent_mounts_for_live_activity_and_inline_approvals(): void
+    public function test_chat_page_keeps_inline_approvals_and_uses_global_agent_activity_control(): void
     {
         $thread = $this->thread();
         ChatMessage::create([
@@ -178,7 +178,9 @@ final class ChatRuntimeTruthfulnessTest extends TestCase
             ->get('/chats/'.$thread->id)
             ->assertOk()
             ->assertSee('data-runtime-approval-stack', false)
-            ->assertSee('data-chat-inline-activity', false);
+            ->assertSee('data-agent-activity-trigger', false)
+            ->assertSee('Agent activity')
+            ->assertDontSee('data-chat-inline-activity', false);
     }
 
     public function test_global_runtime_feed_reports_running_chat_work_without_opening_the_chat(): void

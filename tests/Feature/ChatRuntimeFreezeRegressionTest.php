@@ -6,7 +6,7 @@ use Tests\TestCase;
 
 final class ChatRuntimeFreezeRegressionTest extends TestCase
 {
-    public function test_chat_runtime_projection_filters_its_own_mutations_before_repainting(): void
+    public function test_chat_runtime_projection_filters_its_own_approval_mutations_before_repainting(): void
     {
         $runtime = file_get_contents(resource_path('js/runtime-ui.js'));
 
@@ -19,9 +19,10 @@ final class ChatRuntimeFreezeRegressionTest extends TestCase
         );
 
         self::assertStringContainsString(
-            "target.closest('[data-runtime-approval-stack], [data-chat-inline-activity]')",
+            "!target.closest('[data-runtime-approval-stack]')",
             $runtime,
-            'Runtime projection must ignore mutations caused by its own approval/activity mounts.'
+            'Chat observation must ignore mutations caused by the inline approval mount.'
         );
+        self::assertStringNotContainsString('data-chat-inline-activity', $runtime);
     }
 }

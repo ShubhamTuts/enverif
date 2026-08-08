@@ -6,6 +6,7 @@ cd "$ROOT"
 
 BASE_URL="${ENVERIF_INSTALLER_SMOKE_URL:-http://127.0.0.1:8013}"
 PORT="${ENVERIF_INSTALLER_SMOKE_PORT:-8013}"
+APACHE_PORT="${ENVERIF_APACHE_SMOKE_PORT:-8014}"
 DB_HOST_SMOKE="${DB_HOST:-127.0.0.1}"
 DB_PORT_SMOKE="${DB_PORT:-3306}"
 DB_DATABASE_SMOKE="${DB_DATABASE:-enverif_installer_test}"
@@ -16,12 +17,25 @@ ADMIN_PASSWORD="InstallerPass123!"
 COOKIE_JAR="$(mktemp)"
 WORK="$(mktemp -d)"
 SERVER_LOG="$WORK/server.log"
+APACHE_ERROR_LOG="$WORK/apache-error.log"
 SERVER_PID=""
+APACHE_ACTIVE=0
+APACHE_SITE="/etc/apache2/sites-available/enverif-smoke.conf"
+APACHE_PORT_CONF="/etc/apache2/conf-available/enverif-smoke-port.conf"
 
 cleanup() {
   if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
+  fi
+  if [[ "$APACHE_ACTIVE" == "1" ]]; then
+    sudo apache2ctl -k stop >/dev/null 2>&1 || true
+    APACHE_ACTIVE=0
+  fi
+  if [[ -n "${CI:-}" ]]; then
+    sudo a2dissite enverif-smoke >/dev/null 2>&1 || true
+    sudo a2disconf enverif-smoke-port >/dev/null 2>&1 || true
+    sudo rm -f "$APACHE_SITE" "$APACHE_PORT_CONF" >/dev/null 2>&1 || true
   fi
   rm -f "$COOKIE_JAR"
   rm -rf "$WORK"
@@ -40,6 +54,10 @@ fail() {
   if [[ -f "$SERVER_LOG" ]]; then
     echo "--- Laravel server log ---" >&2
     tail -n 160 "$SERVER_LOG" >&2 || true
+  fi
+  if [[ -f "$APACHE_ERROR_LOG" ]]; then
+    echo "--- Apache error/rewrite log ---" >&2
+    tail -n 200 "$APACHE_ERROR_LOG" >&2 || true
   fi
   exit 1
 }
@@ -85,6 +103,74 @@ assert_http_200() {
   if grep -Eqi 'Internal Server Error|Server Error|ParseError|FatalError' "$body"; then
     fail "Framework error page detected at $path." "$body"
   fi
+}
+
+apache_rewrite_probe() {
+  if ! command -v apache2ctl >/dev/null 2>&1; then
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y apache2 >/dev/null
+  fi
+
+  # GitHub-hosted runners keep /home/runner/work non-searchable by Apache's www-data
+  # user. Shared hosts do not have that ownership mismatch, so make only directory
+  # traversal/runtime-write permissions representative before exercising .htaccess.
+  local parent="$ROOT"
+  while [[ "$parent" != "/" ]]; do
+    sudo chmod o+x "$parent"
+    parent="$(dirname "$parent")"
+  done
+  sudo chmod -R a+rwX "$ROOT/storage" "$ROOT/bootstrap/cache"
+
+  sudo a2enmod rewrite >/dev/null
+  printf 'Listen 127.0.0.1:%s\n' "$APACHE_PORT" | sudo tee "$APACHE_PORT_CONF" >/dev/null
+  sudo tee "$APACHE_SITE" >/dev/null <<EOF
+<VirtualHost 127.0.0.1:${APACHE_PORT}>
+    ServerName 127.0.0.1
+    DocumentRoot "${ROOT}"
+    ErrorLog "${APACHE_ERROR_LOG}"
+    LogLevel warn rewrite:trace4
+    <Directory "${ROOT}">
+        Options -Indexes
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+EOF
+  sudo a2enconf enverif-smoke-port >/dev/null
+  sudo a2ensite enverif-smoke >/dev/null
+  sudo apache2ctl configtest >/dev/null
+  sudo apache2ctl -k start >/dev/null
+  APACHE_ACTIVE=1
+
+  local apache_url="http://127.0.0.1:${APACHE_PORT}"
+  for _ in $(seq 1 30); do
+    if curl -sS -b "$COOKIE_JAR" -o /dev/null "$apache_url/"; then
+      break
+    fi
+    sleep 0.25
+  done
+
+  local path code body
+  body="$WORK/apache-baseline.out"
+  code="$(curl -sS -b "$COOKIE_JAR" -o "$body" -w '%{http_code}' "$apache_url/agents")"
+  [[ "$code" == "200" ]] || fail "Apache baseline /agents did not reach Laravel (HTTP $code); the Apache test environment itself is invalid." "$body"
+
+  for path in /skills/create /plugins/apify/dependencies; do
+    body="$WORK/apache-$(echo "$path" | tr '/' '_').out"
+    code="$(curl -sS -b "$COOKIE_JAR" -o "$body" -w '%{http_code}' "$apache_url$path")"
+    [[ "$code" == "200" ]] || fail "Expected authenticated Laravel route $path to return 200 through root .htaccess, received HTTP $code." "$body"
+  done
+
+  for path in /app/Http/Controllers/SkillController.php /config/app.php /resources/views/layouts/app.blade.php /vendor/autoload.php; do
+    code="$(curl -sS -o /dev/null -w '%{http_code}' "$apache_url$path")"
+    [[ "$code" == "403" || "$code" == "404" ]] || fail "Private application path $path was directly accessible through Apache (HTTP $code)."
+  done
+
+  sudo apache2ctl -k stop >/dev/null
+  APACHE_ACTIVE=0
+  sudo a2dissite enverif-smoke >/dev/null
+  sudo a2disconf enverif-smoke-port >/dev/null
+  sudo rm -f "$APACHE_SITE" "$APACHE_PORT_CONF"
 }
 
 rm -f storage/app/installed storage/app/bootstrap.key bootstrap/cache/config.php
@@ -153,9 +239,13 @@ if ! grep -Eiq '^location: ' "$LOGIN_HEADERS" || grep -Eiq '^location: .*/login$
   fail "Login did not redirect to the chat root." "$WORK/login.response"
 fi
 
-for path in / /agents /agents/create /workflows /workflows/create /connectors /skills /models /mcp /settings; do
+for path in / /agents /agents/create /workflows /workflows/create /connectors /skills /skills/create /models /mcp /settings; do
   assert_http_200 "$path"
 done
+
+# Exercise the same application through Apache with the authenticated owner session.
+# This catches root .htaccess collisions that php artisan serve cannot reproduce.
+apache_rewrite_probe
 
 ROOT_HTML="$WORK/body-_.html"
 grep -q 'data-chat-shell' "$ROOT_HTML" || fail "Authenticated root did not render the chat shell." "$ROOT_HTML"

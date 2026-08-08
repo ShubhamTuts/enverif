@@ -16,6 +16,16 @@ final class RuntimeAssetCacheBustTest extends TestCase
         self::assertStringContainsString('rawurlencode($runtimeAssetVersion)', $layout);
     }
 
+    public function test_runtime_stylesheet_cache_key_changes_when_served_file_changes(): void
+    {
+        $layout = file_get_contents(resource_path('views/layouts/app.blade.php'));
+
+        self::assertIsString($layout);
+        self::assertStringContainsString("@filemtime(public_path('assets/runtime-ui.css'))", $layout);
+        self::assertStringContainsString('$runtimeCssVersion', $layout);
+        self::assertStringContainsString('rawurlencode($runtimeCssVersion)', $layout);
+    }
+
     public function test_chat_application_javascript_cache_key_changes_when_served_file_changes(): void
     {
         $layout = file_get_contents(resource_path('views/layouts/app.blade.php'));

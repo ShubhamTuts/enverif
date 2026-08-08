@@ -2,7 +2,7 @@
 
 **Product:** Enverif
 **Maintainer:** Codefreex
-**Target release:** 1.4.0
+**Target release:** 1.4.1
 
 ### 1.3.9 slim composer + agent create fix
 
